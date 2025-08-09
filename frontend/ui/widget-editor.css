@@ -1,0 +1,20 @@
+#widget-editor-modal {
+    z-index: var(--z-sub-modal-overlay);
+}
+
+#widget-editor-modal::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(var(--overlay-gray-rgb), 0.5);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    z-index: -1;
+}
+
+#widget-editor-modal .modal-content {
+    max-width: 500px;
+}

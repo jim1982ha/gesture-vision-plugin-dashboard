@@ -1,0 +1,38 @@
+<div id="widget-editor-modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-content">
+        <h3 class="modal-header">
+            <span class="material-icons header-icon">widgets</span>
+            <span class="header-title">{{widgetEditorTitle}}</span>
+            <button id="widget-editor-close-btn" class="btn btn-icon header-close-btn"><span class="mdi mdi-close"></span></button>
+        </h3>
+        <div class="modal-scrollable-content">
+            <form onsubmit="return false;">
+                <div class="form-group">
+                    <label for="widget-label-input">{{widgetLabelLabel}}</label>
+                    <input type="text" id="widget-label-input" class="form-control" placeholder="{{widgetLabelPlaceholder}}">
+                </div>
+                <div class="form-group">
+                    <label for="widget-action-type-select">{{widgetActionTypeLabel}}</label>
+                    <div class="select-wrapper">
+                        <select id="widget-action-type-select" class="form-control"></select>
+                    </div>
+                </div>
+                <div id="widget-action-fields-container"></div>
+                <div class="form-group">
+                    <label for="widget-size-select">{{widgetSizeLabel}}</label>
+                    <div class="select-wrapper">
+                        <select id="widget-size-select" class="form-control">
+                            <option value="1x1">{{widgetSizeSmall}}</option>
+                            <option value="2x1">{{widgetSizeMedium}}</option>
+                            <option value="2x2">{{widgetSizeLarge}}</option>
+                        </select>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-actions">
+            <button id="widget-editor-cancel-btn" class="btn btn-secondary">{{cancel}}</button>
+            <button id="widget-editor-save-btn" class="btn btn-primary">{{save}}</button>
+        </div>
+    </div>
+</div>
