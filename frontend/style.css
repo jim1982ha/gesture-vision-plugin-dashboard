@@ -18,7 +18,6 @@
     transition: opacity 0.3s ease, visibility 0s linear 0.3s;
 }
 
-/* FIX: New CSS rule to hide main content when the dashboard is active. */
 body.dashboard-active #liveFeedSection,
 body.dashboard-active #configListContainer,
 body.dashboard-active #desktopConfigListTitle {
@@ -180,6 +179,15 @@ body.dashboard-active #desktopConfigListTitle {
     animation: pop-in 0.3s ease-out;
 }
 
+.dashboard-widget.widget-triggered {
+    animation: widget-trigger-pulse 0.4s ease-out;
+}
+@keyframes widget-trigger-pulse {
+    0% { transform: scale(1); box-shadow: var(--shadow-strong); }
+    50% { transform: scale(1.05); box-shadow: 0 0 0 4px rgba(var(--primary-rgb), 0.5); }
+    100% { transform: scale(1); box-shadow: var(--shadow-strong); }
+}
+
 .dashboard-widget.active-state {
     background-color: var(--primary);
 }
@@ -239,6 +247,13 @@ body.dashboard-active #desktopConfigListTitle {
     background: radial-gradient(closest-side, white 60%, transparent 0 99.9%),
                 conic-gradient(var(--primary) calc(var(--progress) * 100%), rgba(var(--primary-rgb), 0.3) 0);
 }
+
+/* FIX: New rule for high-contrast cursor on active widgets. */
+#dashboard-cursor.high-contrast {
+    background: radial-gradient(closest-side, white 60%, transparent 0 99.9%),
+                conic-gradient(var(--text-on-primary) calc(var(--progress) * 100%), rgba(var(--text-on-primary-rgb, 255, 255, 255), 0.4) 0);
+}
+
 #dashboard-cursor.visible { opacity: 1; }
 #dashboard-cursor.dwelling { animation: pulse 1s infinite; }
 @keyframes pulse {

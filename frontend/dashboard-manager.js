@@ -32,6 +32,14 @@ export class DashboardManager {
         this.#interactionManager.initialize();
         this.#createToolbarButtons();
         this.#widgetGrid.loadLayout();
+        
+        // FIX: Subscribe to action results to trigger data refreshes.
+        const { WEBSOCKET_EVENTS } = this.#context.shared.constants;
+        this.#context.services.pubsub.subscribe(WEBSOCKET_EVENTS.BACKEND_ACTION_RESULT, (result) => {
+            if (result?.success && result.pluginId === 'gesture-vision-plugin-home-assistant') {
+                setTimeout(() => this.#refreshPluginData(), 500);
+            }
+        });
     }
 
     getContext() {
@@ -184,7 +192,7 @@ export class DashboardManager {
                 let selectedSource = uiController._cameraSourceManager.getSelectedCameraSource();
                 if (!selectedSource || selectedSource.startsWith('rtsp:')) {
                     uiController.modalManager.toggleCameraSelectModal(true);
-                    return; // Wait for user to select a webcam
+                    return;
                 }
                 
                 try {

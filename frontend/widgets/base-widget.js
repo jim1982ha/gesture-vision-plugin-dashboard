@@ -51,6 +51,8 @@ export class BaseWidget {
         el.addEventListener('click', (e) => {
             if (this.grid.isEditMode()) {
                 e.preventDefault();
+            } else {
+                this.dispatchAction();
             }
         });
 
@@ -75,6 +77,48 @@ export class BaseWidget {
         }
     }
 
+    dispatchAction() {
+        const { webSocketService, services } = this.getContext();
+        const { pubsub } = services;
+        const { GESTURE_EVENTS } = this.getContext().shared.constants;
+
+        const actionConfig = this.getActionConfig();
+        if (!actionConfig || !actionConfig.pluginId || actionConfig.pluginId === 'none') {
+            console.warn(`[BaseWidget] Clicked widget ${this.id}, but has no action.`);
+            return;
+        }
+
+        // FIX: Add visual feedback for action dispatch.
+        this.element.classList.add('widget-triggered');
+        setTimeout(() => this.element.classList.remove('widget-triggered'), 400);
+
+        const historyEntryPayload = {
+            gesture: `Dashboard: ${this.config.label || this.id}`,
+            actionType: actionConfig.pluginId,
+            gestureCategory: 'UI_DASHBOARD_WIDGET',
+            details: actionConfig,
+        };
+        pubsub.publish(GESTURE_EVENTS.RECORDED, historyEntryPayload);
+
+        const dummyGestureConfig = {
+            gesture: `DashboardClick_${this.id}`,
+            confidence: 100,
+            duration: 0,
+            actionConfig: actionConfig
+        };
+        const actionDetails = {
+            gestureName: dummyGestureConfig.gesture,
+            confidence: 1.0,
+            timestamp: Date.now()
+        };
+        
+        if (webSocketService) {
+            webSocketService.sendDispatchAction(dummyGestureConfig, actionDetails);
+        } else {
+             console.error("[BaseWidget] WebSocketService is not available in the context.");
+        }
+    }
+
     render() {
         return this.element;
     }
@@ -92,7 +136,6 @@ export class BaseWidget {
     }
 
     setEditMode(_isEditing) {
-        // Subclasses can override if they need to change appearance in edit mode
     }
 
     getActionConfig() {

@@ -2,7 +2,7 @@
   "id": "gesture-vision-plugin-dashboard",
   "nameKey": "pluginDashboardName",
   "descriptionKey": "pluginDashboardDescription",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "author": "GestureVision Team",
   "icon": {
     "type": "material-icons",

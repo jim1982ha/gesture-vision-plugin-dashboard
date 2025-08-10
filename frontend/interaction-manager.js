@@ -62,7 +62,6 @@ export class InteractionManager {
         if (indexFingertip) {
             this.#cursorElement.classList.add('visible');
             
-            // FIX: Calculate cursor position relative to the entire dashboard, not just the canvas.
             const dashboardRect = this.#dashboardManager.getRootElement().getBoundingClientRect();
             
             const centeredX = indexFingertip.x - 0.5;
@@ -113,7 +112,14 @@ export class InteractionManager {
     #hoverWidget(widgetId, DWELL_TIME_MS) {
         this.#hoveredWidgetId = widgetId;
         const widget = this.#widgetGrid.getWidgetById(widgetId);
-        widget?.getElement()?.classList.add('hover');
+        const widgetElement = widget?.getElement();
+        if (widgetElement) {
+            widgetElement.classList.add('hover');
+            // FIX: Check if the widget is in an active state and apply high-contrast class to cursor if so.
+            if (widgetElement.classList.contains('active-state')) {
+                this.#cursorElement?.classList.add('high-contrast');
+            }
+        }
         this.#startDwellTimer(DWELL_TIME_MS);
     }
 
@@ -122,6 +128,8 @@ export class InteractionManager {
             const widget = this.#widgetGrid.getWidgetById(this.#hoveredWidgetId);
             widget?.getElement()?.classList.remove('hover');
         }
+        // FIX: Always remove high-contrast class when hover ends.
+        this.#cursorElement?.classList.remove('high-contrast');
         this.#hoveredWidgetId = null;
         this.#clearDwellTimer();
     }
@@ -155,29 +163,10 @@ export class InteractionManager {
         if (!this.#hoveredWidgetId) return;
 
         const widget = this.#widgetGrid.getWidgetById(this.#hoveredWidgetId);
-        if (!widget) return;
         
-        const actionConfig = widget.getActionConfig();
-        if (!actionConfig || !actionConfig.pluginId || actionConfig.pluginId === 'none') {
-            console.warn(`[Dashboard] Widget ${widget.id} clicked, but has no action.`);
-            return;
+        if (widget) {
+            widget.dispatchAction();
         }
-
-        const dummyGestureConfig = {
-            gesture: `DashboardClick_${widget.id}`,
-            confidence: 100,
-            duration: 0,
-            actionConfig: actionConfig
-        };
-
-        const actionDetails = {
-            gestureName: dummyGestureConfig.gesture,
-            confidence: 1.0,
-            timestamp: Date.now()
-        };
-
-        console.log(`[Dashboard] Dispatching action for widget: ${widget.id}`, actionConfig);
-        this.#context.services.webSocketService.sendDispatchAction(dummyGestureConfig, actionDetails);
         
         this.#unhoverWidget();
     }

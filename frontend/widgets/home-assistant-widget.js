@@ -18,7 +18,6 @@ export class HomeAssistantToggleWidget extends BaseWidget {
             { equalityFn: (a, b) => JSON.stringify(a) === JSON.stringify(b) }
         );
         
-        // FIX: Add a subscription to the generic plugin data update event for robust initialization.
         const { pubsub } = this.getContext().services;
         this.#unsubscribePubsub = pubsub.subscribe('PLUGIN_EXT_DATA_UPDATED', (pluginId) => {
             if (pluginId === 'gesture-vision-plugin-home-assistant') {
@@ -88,8 +87,7 @@ export class HomeAssistantToggleWidget extends BaseWidget {
     }
 
     destroy() {
-        super.destroy(); // This calls this.unsubscribeStore()
-        // FIX: Unsubscribe from the pubsub event when the widget is destroyed.
+        super.destroy(); 
         if (this.#unsubscribePubsub) {
             this.#unsubscribePubsub();
         }
