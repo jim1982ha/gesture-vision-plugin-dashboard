@@ -16,5 +16,6 @@
     "deleteWidget": "删除小部件",
     "editWidget": "编辑小部件",
     "confirmDeleteWidgetMessage": "您确定要删除 '{{widgetLabel}}' 小部件吗？",
-    "actionConfigRequiredForWidget": "请为小部件配置一个动作。"
+    "actionConfigRequiredForWidget": "请为小部件配置一个动作。",
+    "mirrorCursor": "镜像光标"
 }

@@ -16,5 +16,6 @@
     "deleteWidget": "Delete Widget",
     "editWidget": "Edit Widget",
     "confirmDeleteWidgetMessage": "Are you sure you want to delete the '{{widgetLabel}}' widget?",
-    "actionConfigRequiredForWidget": "Please configure an action for the widget."
+    "actionConfigRequiredForWidget": "Please configure an action for the widget.",
+    "mirrorCursor": "Mirror Cursor"
 }

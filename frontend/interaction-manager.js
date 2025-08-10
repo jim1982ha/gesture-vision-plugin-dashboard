@@ -1,11 +1,15 @@
 /* FILE: extensions/plugins/gesture-vision-plugin-dashboard/frontend/interaction-manager.js */
+const CURSOR_SENSITIVITY = 1.2; // 1.0 = exact mapping, > 1.0 allows reaching edges
+const CURSOR_STORAGE_KEY = 'gesture-vision-dashboard-cursor-mirror';
+
 export class InteractionManager {
     #dashboardManager;
     #widgetGrid;
     #cursorElement;
     #isEnabled = false;
     #unsubscribePubsub;
-    #canvasElement; // Cache the canvas element
+    #canvasElement; 
+    #isMirrored;
 
     #hoveredWidgetId = null;
     #dwellTimeout = null;
@@ -13,10 +17,13 @@ export class InteractionManager {
 
     constructor(dashboardManager) {
         this.#dashboardManager = dashboardManager;
-        this.#widgetGrid = this.#dashboardManager.getWidgetGrid();
-        this.#createCursor();
+    }
 
+    initialize() {
+        this.#widgetGrid = this.#dashboardManager.getWidgetGrid();
         this.#canvasElement = document.getElementById('output_canvas');
+        this.#isMirrored = localStorage.getItem(CURSOR_STORAGE_KEY) === 'true';
+        this.#createCursor();
 
         const { GESTURE_EVENTS } = this.#context.shared.constants;
         this.#unsubscribePubsub = this.#context.services.pubsub.subscribe(GESTURE_EVENTS.RENDER_OUTPUT, this.#handleLandmarks.bind(this));
@@ -29,12 +36,12 @@ export class InteractionManager {
     #createCursor() {
         this.#cursorElement = document.createElement('div');
         this.#cursorElement.id = 'dashboard-cursor';
-        this.#dashboardManager.getRootElement().appendChild(this.#cursorElement);
+        this.#dashboardManager.getRootElement()?.appendChild(this.#cursorElement);
     }
 
     setEnabled(enabled) {
         this.#isEnabled = enabled;
-        this.#cursorElement.classList.toggle('visible', enabled);
+        this.#cursorElement?.classList.toggle('visible', enabled);
         if (!enabled) {
             this.#clearDwellTimer();
             this.#unhoverWidget();
@@ -42,8 +49,9 @@ export class InteractionManager {
     }
 
     #handleLandmarks(renderData) {
-        if (!this.#isEnabled || !this.#canvasElement || !renderData?.handLandmarks?.[0]) {
-            this.#cursorElement.classList.remove('visible');
+        if (!this.#isEnabled || !this.#canvasElement || !this.#cursorElement || !renderData?.handLandmarks?.[0]) {
+            this.#cursorElement?.classList.remove('visible');
+            this.#unhoverWidget();
             return;
         }
 
@@ -53,10 +61,24 @@ export class InteractionManager {
 
         if (indexFingertip) {
             this.#cursorElement.classList.add('visible');
-            const rect = this.#canvasElement.getBoundingClientRect();
             
-            const cursorX = rect.left + indexFingertip.x * rect.width;
-            const cursorY = rect.top + indexFingertip.y * rect.height;
+            // FIX: Calculate cursor position relative to the entire dashboard, not just the canvas.
+            const dashboardRect = this.#dashboardManager.getRootElement().getBoundingClientRect();
+            
+            const centeredX = indexFingertip.x - 0.5;
+            const centeredY = indexFingertip.y - 0.5;
+            let finalX = 0.5 + centeredX * CURSOR_SENSITIVITY;
+            let finalY = 0.5 + centeredY * CURSOR_SENSITIVITY;
+
+            if (this.#isMirrored) {
+                finalX = 1 - finalX;
+            }
+
+            finalX = Math.max(0, Math.min(1, finalX));
+            finalY = Math.max(0, Math.min(1, finalY));
+
+            const cursorX = dashboardRect.left + finalX * dashboardRect.width;
+            const cursorY = dashboardRect.top + finalY * dashboardRect.height;
             
             this.#cursorElement.style.left = `${cursorX}px`;
             this.#cursorElement.style.top = `${cursorY}px`;
@@ -125,8 +147,8 @@ export class InteractionManager {
         if (this.#dwellInterval) clearInterval(this.#dwellInterval);
         this.#dwellTimeout = null;
         this.#dwellInterval = null;
-        this.#cursorElement.classList.remove('dwelling');
-        this.#cursorElement.style.setProperty('--progress', 0);
+        this.#cursorElement?.classList.remove('dwelling');
+        this.#cursorElement?.style.setProperty('--progress', 0);
     }
 
     #handleClick() {
@@ -160,10 +182,23 @@ export class InteractionManager {
         this.#unhoverWidget();
     }
 
+    toggleMirroring() {
+        this.#isMirrored = !this.#isMirrored;
+        localStorage.setItem(CURSOR_STORAGE_KEY, this.#isMirrored);
+        this.updateMirrorButtonState();
+    }
+    
+    updateMirrorButtonState() {
+        const button = document.getElementById('dashboard-mirror-cursor-btn');
+        if (button) {
+            button.classList.toggle('active', this.#isMirrored);
+        }
+    }
+
     destroy() {
         if (typeof this.#unsubscribePubsub === 'function') {
             this.#unsubscribePubsub();
         }
-        this.#cursorElement.remove();
+        this.#cursorElement?.remove();
     }
 }

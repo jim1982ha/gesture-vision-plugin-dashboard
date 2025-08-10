@@ -2,25 +2,57 @@
 
 #dashboard-plugin-root {
     position: fixed;
-    top: var(--header-height);
+    top: 0;
     left: 0;
     right: 0;
-    bottom: var(--bottom-nav-height, 0);
+    bottom: 0;
     z-index: var(--z-dashboard-overlay);
     background-color: rgba(var(--background-rgb), 0.7);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     visibility: hidden;
     opacity: 0;
     transition: opacity 0.3s ease, visibility 0s linear 0.3s;
 }
 
+/* FIX: New CSS rule to hide main content when the dashboard is active. */
+body.dashboard-active #liveFeedSection,
+body.dashboard-active #configListContainer,
+body.dashboard-active #desktopConfigListTitle {
+    visibility: hidden !important;
+    opacity: 0 !important;
+}
+
+
 #dashboard-plugin-root.visible {
     visibility: visible;
     opacity: 1;
     transition-delay: 0s;
+}
+
+.dashboard-content-wrapper {
+    width: 90vw;
+    height: 85vh;
+    max-width: 1400px;
+    max-height: 900px;
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-large);
+    box-shadow: var(--shadow-strong);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; /* Ensures border-radius is respected by children */
+    transform: scale(0.95);
+    opacity: 0;
+    transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+}
+
+#dashboard-plugin-root.visible .dashboard-content-wrapper {
+    transform: scale(1);
+    opacity: 1;
 }
 
 #dashboard-plugin-root.entering .dashboard-widget {
@@ -36,17 +68,52 @@
     flex-shrink: 0;
     padding: var(--space-sm);
     display: flex;
+    align-items: center;
     justify-content: flex-end;
     gap: var(--space-sm);
-    background-color: rgba(var(--surface-rgb), 0.5);
+    background-color: transparent;
     border-bottom: 1px solid var(--border);
     z-index: calc(var(--z-dashboard-content) + 1);
 }
 
-@media screen and (min-width: 769px) {
-    .dashboard-toolbar {
-        padding-right: calc(var(--sidebar-edge-toggle-width) + var(--space-sm) + var(--space-md));
-    }
+#dashboard-camera-selector-container {
+    position: relative;
+    margin-right: auto; /* Pushes other items to the right */
+}
+
+.dashboard-camera-trigger {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    max-width: 250px;
+}
+
+.dashboard-camera-trigger .camera-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dashboard-camera-panel {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: var(--z-dropdown);
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-strong);
+    min-width: 200px;
+    max-height: 250px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+    padding: var(--space-xs);
+}
+
+.dashboard-camera-panel .btn {
+    justify-content: flex-start;
 }
 
 .dashboard-grid-container {
