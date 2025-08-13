@@ -18,7 +18,6 @@ const dashboardPlugin = {
     dashboardToggleButton.appendChild(iconSpan);
     setIcon(iconSpan, manifest.icon.name);
 
-    // FIX: Instantiate the manager, then explicitly initialize it.
     dashboardManagerInstance = new DashboardManager(context);
     dashboardManagerInstance.initialize();
 

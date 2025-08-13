@@ -88,7 +88,6 @@ export class BaseWidget {
             return;
         }
 
-        // FIX: Add visual feedback for action dispatch.
         this.element.classList.add('widget-triggered');
         setTimeout(() => this.element.classList.remove('widget-triggered'), 400);
 

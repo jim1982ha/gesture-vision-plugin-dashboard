@@ -115,7 +115,6 @@ export class InteractionManager {
         const widgetElement = widget?.getElement();
         if (widgetElement) {
             widgetElement.classList.add('hover');
-            // FIX: Check if the widget is in an active state and apply high-contrast class to cursor if so.
             if (widgetElement.classList.contains('active-state')) {
                 this.#cursorElement?.classList.add('high-contrast');
             }
@@ -128,7 +127,6 @@ export class InteractionManager {
             const widget = this.#widgetGrid.getWidgetById(this.#hoveredWidgetId);
             widget?.getElement()?.classList.remove('hover');
         }
-        // FIX: Always remove high-contrast class when hover ends.
         this.#cursorElement?.classList.remove('high-contrast');
         this.#hoveredWidgetId = null;
         this.#clearDwellTimer();

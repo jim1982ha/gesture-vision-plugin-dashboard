@@ -33,7 +33,6 @@ export class DashboardManager {
         this.#createToolbarButtons();
         this.#widgetGrid.loadLayout();
         
-        // FIX: Subscribe to action results to trigger data refreshes.
         const { WEBSOCKET_EVENTS } = this.#context.shared.constants;
         this.#context.services.pubsub.subscribe(WEBSOCKET_EVENTS.BACKEND_ACTION_RESULT, (result) => {
             if (result?.success && result.pluginId === 'gesture-vision-plugin-home-assistant') {
