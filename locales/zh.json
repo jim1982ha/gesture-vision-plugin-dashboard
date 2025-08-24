@@ -1,0 +1,21 @@
+{
+    "pluginDashboardName": "仪表盘",
+    "pluginDashboardDescription": "提供一个带有小部件的交互式界面覆盖层来控制操作。",
+    "dashboardMode": "仪表盘模式",
+    "editDashboard": "编辑仪表盘",
+    "saveDashboard": "保存布局",
+    "addWidget": "添加小部件",
+    "widgetEditorTitle": "小部件配置",
+    "widgetActionTypeLabel": "小部件动作",
+    "widgetLabelLabel": "小部件标签 (可选)",
+    "widgetLabelPlaceholder": "例如：客厅灯",
+    "widgetSizeLabel": "小部件尺寸",
+    "widgetSizeSmall": "小",
+    "widgetSizeMedium": "中",
+    "widgetSizeLarge": "大",
+    "deleteWidget": "删除小部件",
+    "editWidget": "编辑小部件",
+    "confirmDeleteWidgetMessage": "您确定要删除 '{{widgetLabel}}' 小部件吗？",
+    "actionConfigRequiredForWidget": "请为小部件配置一个动作。",
+    "mirrorCursor": "镜像光标"
+}

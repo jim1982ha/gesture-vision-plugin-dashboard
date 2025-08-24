@@ -1,0 +1,10 @@
+#widget-editor-modal {
+    z-index: var(--z-sub-modal-overlay);
+    background-color: var(--overlay-bg);
+    backdrop-filter: blur(var(--overlay-blur));
+    -webkit-backdrop-filter: blur(var(--overlay-blur));
+}
+
+#widget-editor-modal .modal-content {
+    max-width: 500px;
+}

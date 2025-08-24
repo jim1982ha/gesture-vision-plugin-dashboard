@@ -1,0 +1,21 @@
+{
+    "pluginDashboardName": "Dashboard",
+    "pluginDashboardDescription": "Provides an interactive UI overlay with widgets to control actions.",
+    "dashboardMode": "Dashboard Mode",
+    "editDashboard": "Edit Dashboard",
+    "saveDashboard": "Save Layout",
+    "addWidget": "Add Widget",
+    "widgetEditorTitle": "Widget Configuration",
+    "widgetActionTypeLabel": "Widget Action",
+    "widgetLabelLabel": "Widget Label (Optional)",
+    "widgetLabelPlaceholder": "e.g., Living Room Lamp",
+    "widgetSizeLabel": "Widget Size",
+    "widgetSizeSmall": "Small",
+    "widgetSizeMedium": "Medium",
+    "widgetSizeLarge": "Large",
+    "deleteWidget": "Delete Widget",
+    "editWidget": "Edit Widget",
+    "confirmDeleteWidgetMessage": "Are you sure you want to delete the '{{widgetLabel}}' widget?",
+    "actionConfigRequiredForWidget": "Please configure an action for the widget.",
+    "mirrorCursor": "Mirror Cursor"
+}

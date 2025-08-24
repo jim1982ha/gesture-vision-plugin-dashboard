@@ -1,0 +1,21 @@
+{
+    "pluginDashboardName": "Tableau de Bord",
+    "pluginDashboardDescription": "Fournit une superposition d'interface interactive avec des widgets pour contrôler les actions.",
+    "dashboardMode": "Mode Tableau de Bord",
+    "editDashboard": "Modifier le Tableau de Bord",
+    "saveDashboard": "Sauvegarder la Disposition",
+    "addWidget": "Ajouter un Widget",
+    "widgetEditorTitle": "Configuration du Widget",
+    "widgetActionTypeLabel": "Action du Widget",
+    "widgetLabelLabel": "Étiquette du Widget (Optionnel)",
+    "widgetLabelPlaceholder": "ex: Lampe du Salon",
+    "widgetSizeLabel": "Taille du Widget",
+    "widgetSizeSmall": "Petit",
+    "widgetSizeMedium": "Moyen",
+    "widgetSizeLarge": "Grand",
+    "deleteWidget": "Supprimer le Widget",
+    "editWidget": "Modifier le Widget",
+    "confirmDeleteWidgetMessage": "Êtes-vous sûr de vouloir supprimer le widget '{{widgetLabel}}' ?",
+    "actionConfigRequiredForWidget": "Veuillez configurer une action pour le widget.",
+    "mirrorCursor": "Miroir Curseur"
+}
