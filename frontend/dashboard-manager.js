@@ -1,21 +1,20 @@
 /* FILE: extensions/plugins/gesture-vision-plugin-dashboard/frontend/dashboard-manager.js */
-import { WidgetGrid } from './widget-grid.js';
 import { InteractionManager } from './interaction-manager.js';
-import { WidgetEditor } from './ui/widget-editor.js';
 import { DashboardCameraSelector } from './dashboard-camera-selector.js';
+
+const CARD_SIZE_STORAGE_KEY = 'gesture-vision-dashboard-card-size';
 
 export class DashboardManager {
     #context;
     #rootElement;
-    #gridContainer;
+    #cardContainer;
     #toolbar;
-    #widgetGrid;
     #interactionManager;
-    #widgetEditor;
     #cameraSelector;
     #isActive = false;
-    #isEditMode = false;
-    #streamStartedByDashboard = false;
+    #currentCardSize = 'medium';
+    #unsubscribeStore;
+    #streamWasActiveBeforeDashboard = false;
 
     constructor(context) {
         this.#context = context;
@@ -24,36 +23,37 @@ export class DashboardManager {
     
     initialize() {
         this.#interactionManager = new InteractionManager(this);
-        this.#widgetGrid = new WidgetGrid(this.#gridContainer, this);
-        this.#widgetEditor = new WidgetEditor(this.#context);
         const cameraSelectorContainer = this.#toolbar.querySelector('#dashboard-camera-selector-container');
         this.#cameraSelector = new DashboardCameraSelector(cameraSelectorContainer, this);
         
         this.#interactionManager.initialize();
         this.#createToolbarButtons();
-        this.#widgetGrid.loadLayout();
         
         this.#toolbar.querySelector('#dashboard-close-btn')?.addEventListener('click', () => this.toggleDashboard(false));
+        this.#cardContainer.addEventListener('click', this.#handleCardClick);
         
-        const { WEBSOCKET_EVENTS } = this.#context.shared.constants;
-        this.#context.services.pubsub.subscribe(WEBSOCKET_EVENTS.BACKEND_ACTION_RESULT, (result) => {
-            if (result?.success && result.pluginId === 'gesture-vision-plugin-home-assistant') {
-                setTimeout(() => this.#refreshPluginData(), 500);
+        const store = this.#context.coreStateManager;
+        
+        this.#unsubscribeStore = store.subscribe(
+            (state, prevState) => {
+                const configsChanged = state.gestureConfigs !== prevState.gestureConfigs;
+                const featuresChanged = 
+                    state.enableBuiltInHandGestures !== prevState.enableBuiltInHandGestures ||
+                    state.enableCustomHandGestures !== prevState.enableCustomHandGestures ||
+                    state.enablePoseProcessing !== prevState.enablePoseProcessing;
+
+                if (this.#isActive && (configsChanged || featuresChanged)) {
+                    this.#renderActionCards();
+                }
             }
-        });
+        );
+        
+        this.#loadCardSizePreference();
+        this.#updateCardSizeUI();
     }
 
-    getContext() {
-        return this.#context;
-    }
-
-    getWidgetGrid() {
-        return this.#widgetGrid;
-    }
-
-    getRootElement() {
-        return this.#rootElement;
-    }
+    getContext() { return this.#context; }
+    getRootElement() { return this.#rootElement; }
 
     #createUI() {
         this.#rootElement = document.createElement('div');
@@ -81,15 +81,10 @@ export class DashboardManager {
             </div>
         `;
         
-        this.#gridContainer = document.createElement('div');
-        this.#gridContainer.className = 'dashboard-grid-container';
+        this.#cardContainer = document.createElement('div');
+        this.#cardContainer.className = 'config-list dashboard-card-container';
         
-        const editModeBanner = document.createElement('div');
-        editModeBanner.className = 'dashboard-edit-mode-banner';
-        editModeBanner.textContent = 'Edit Mode';
-        this.#gridContainer.appendChild(editModeBanner);
-
-        contentWrapper.append(this.#toolbar, this.#gridContainer);
+        contentWrapper.append(this.#toolbar, this.#cardContainer);
         this.#rootElement.appendChild(contentWrapper);
         document.body.appendChild(this.#rootElement);
     }
@@ -97,137 +92,135 @@ export class DashboardManager {
     #createToolbarButtons() {
         const { services, uiComponents } = this.#context;
         const buttonContainer = this.#toolbar.querySelector('#dashboard-toolbar-buttons');
+        if (!buttonContainer) return;
 
-        const createButton = (textKey, iconKey, clickHandler, id = null) => {
+        const cardSizeGroup = document.createElement('div');
+        cardSizeGroup.className = 'button-toggle-group';
+        cardSizeGroup.id = 'dashboard-card-size-toggle';
+        
+        ['small', 'medium', 'large'].forEach(size => {
             const button = document.createElement('button');
             button.className = 'btn btn-secondary';
-            if (id) button.id = id;
-            
-            const iconSpan = document.createElement('span');
-            const textSpan = document.createElement('span');
-            
-            uiComponents.setIcon(iconSpan, iconKey);
-            textSpan.textContent = services.translate(textKey);
-            
-            button.append(iconSpan, textSpan);
-            button.addEventListener('click', clickHandler);
-            return button;
-        };
+            button.dataset.value = size;
+            button.textContent = services.translate(`widgetSize${size.charAt(0).toUpperCase() + size.slice(1)}`);
+            button.addEventListener('click', () => this.#setCardSize(size));
+            cardSizeGroup.appendChild(button);
+        });
         
-        const addWidgetButton = createButton('addWidget', 'UI_ADD', () => this.#handleAddNewWidget());
-        const editButton = createButton('editDashboard', 'edit', () => this.#toggleEditMode(), 'dashboard-edit-btn');
+        const mirrorCursorButton = document.createElement('button');
+        mirrorCursorButton.className = 'btn btn-secondary';
+        mirrorCursorButton.id = 'dashboard-mirror-cursor-btn';
         
-        const mirrorCursorButton = createButton('mirrorCursor', 'UI_VIDEO_MIRROR', () => this.#interactionManager.toggleMirroring(), 'dashboard-mirror-cursor-btn');
+        const mirrorIconSpan = document.createElement('span');
+        uiComponents.setIcon(mirrorIconSpan, 'UI_VIDEO_MIRROR');
         
-        buttonContainer.append(mirrorCursorButton, editButton, addWidgetButton);
+        const mirrorTextSpan = document.createElement('span');
+        mirrorTextSpan.textContent = services.translate('mirrorCursor');
+        
+        mirrorCursorButton.append(mirrorIconSpan, mirrorTextSpan);
+        mirrorCursorButton.addEventListener('click', () => this.#interactionManager.toggleMirroring());
+        
+        buttonContainer.append(cardSizeGroup, mirrorCursorButton);
         this.#interactionManager.updateMirrorButtonState();
     }
     
-    async #handleAddNewWidget() {
-        const widgetConfig = await this.#widgetEditor.open();
-        if (widgetConfig) {
-            await this.#widgetGrid.addWidget(widgetConfig);
-            this.saveLayout();
+    #handleCardClick = (event) => {
+        const card = (event.target).closest('.card-item');
+        const gestureName = card?.dataset.gestureName;
+
+        if (gestureName) {
+            this.#context.services.pubsub.publish(this.#context.shared.constants.UI_EVENTS.REQUEST_EDIT_CONFIG, gestureName);
+        }
+    };
+
+    #loadCardSizePreference() {
+        const savedSize = localStorage.getItem(CARD_SIZE_STORAGE_KEY);
+        if (savedSize && ['small', 'medium', 'large'].includes(savedSize)) {
+            this.#currentCardSize = savedSize;
+        }
+        this.#cardContainer.classList.add(`card-size-${this.#currentCardSize}`);
+    }
+
+    #setCardSize(size) {
+        if (!['small', 'medium', 'large'].includes(size)) return;
+        this.#cardContainer.classList.remove(`card-size-${this.#currentCardSize}`);
+        this.#currentCardSize = size;
+        this.#cardContainer.classList.add(`card-size-${this.#currentCardSize}`);
+        localStorage.setItem(CARD_SIZE_STORAGE_KEY, size);
+        this.#updateCardSizeUI();
+    }
+
+    #updateCardSizeUI() {
+        const { uiComponents } = this.#context;
+        const sizeToggle = document.getElementById('dashboard-card-size-toggle');
+        if (sizeToggle && uiComponents) {
+            uiComponents.updateButtonGroupActiveState(sizeToggle, this.#currentCardSize);
         }
     }
 
-    async editWidget(widgetId) {
-        const existingConfig = this.#widgetGrid.getWidgetConfig(widgetId);
-        if (!existingConfig) return;
+    async #renderActionCards() {
+        const { uiController, coreStateManager } = this.#context;
+        if (!uiController || !coreStateManager) return;
+
+        this.#cardContainer.innerHTML = '';
+        const configs = coreStateManager.getState().gestureConfigs;
         
-        const newConfig = await this.#widgetEditor.open(existingConfig);
-        if (newConfig) {
-            this.#widgetGrid.updateWidget(widgetId, newConfig);
-            this.saveLayout();
+        if (!configs || configs.length === 0) {
+            this.#renderEmptyState();
+            return;
         }
-    }
 
-    deleteWidget(widgetId) {
-        this.#widgetGrid.removeWidget(widgetId);
-        this.saveLayout();
+        await uiController.renderConfigListToContainer(this.#cardContainer, configs);
     }
     
-    #toggleEditMode() {
-        this.#isEditMode = !this.#isEditMode;
-        this.#rootElement.classList.toggle('edit-mode', this.#isEditMode);
+    #renderEmptyState() {
+        const { services, uiComponents } = this.#context;
+        const emptyStateDiv = document.createElement('div');
+        emptyStateDiv.className = 'dashboard-empty-state';
+
+        const message = document.createElement('p');
+        message.textContent = services.translate('dashboardEmptyMessage');
         
-        this.#interactionManager.setEnabled(!this.#isEditMode && this.#isActive);
-        this.#widgetGrid.setEditMode(this.#isEditMode);
+        const button = document.createElement('button');
+        button.className = 'btn btn-primary';
+        uiComponents.setIcon(button, 'UI_TUNE');
+        button.append(services.translate('dashboardEmptyButton'));
+        button.addEventListener('click', () => {
+            this.toggleDashboard(false);
+            this.#context.uiController?.sidebarManager.toggleConfigSidebar(true);
+        });
 
-        const editButton = this.#toolbar.querySelector('#dashboard-edit-btn');
-        if (editButton) {
-            const { services, uiComponents } = this.#context;
-            const textKey = this.#isEditMode ? 'saveDashboard' : 'editDashboard';
-            const iconKey = this.#isEditMode ? 'UI_SAVE' : 'edit';
-            
-            const textSpan = editButton.querySelector('span:not([class*="material-icons"]):not([class*="mdi"])');
-            if(textSpan) textSpan.textContent = services.translate(textKey);
-
-            const iconSpan = editButton.querySelector('.material-icons, .mdi');
-            if(iconSpan) uiComponents.setIcon(iconSpan, iconKey);
-            
-            if (!this.#isEditMode) {
-                this.saveLayout();
-            }
-        }
-    }
-
-    async #refreshPluginData() {
-        const HA_PLUGIN_ID = 'gesture-vision-plugin-home-assistant';
-        const { coreStateManager, services } = this.#context;
-        const appState = coreStateManager.getState();
-        
-        const hasHaWidgets = this.#widgetGrid.getLayout().some(w => w.actionConfig?.pluginId === HA_PLUGIN_ID);
-        const haConfig = appState.pluginGlobalConfigs.get(HA_PLUGIN_ID);
-
-        if (hasHaWidgets && haConfig?.url && haConfig.token) {
-            try {
-                const response = await fetch(`/api/plugins/${HA_PLUGIN_ID}/entities`);
-                if (!response.ok) throw new Error(`Failed to fetch HA entities: ${response.status}`);
-                
-                const entities = await response.json();
-                const currentState = appState.pluginExtDataCache.get(HA_PLUGIN_ID) || {};
-                
-                coreStateManager.getState().actions.setPluginExtData(HA_PLUGIN_ID, {
-                    ...currentState,
-                    entities: entities,
-                });
-                
-                services.pubsub.publish('PLUGIN_EXT_DATA_UPDATED', HA_PLUGIN_ID);
-            } catch (error) {
-                console.error("[Dashboard] Failed to refresh Home Assistant data:", error);
-            }
-        }
+        emptyStateDiv.append(message, button);
+        this.#cardContainer.appendChild(emptyStateDiv);
     }
     
     async #manageStreamForDashboard(shouldBeActive) {
         const { cameraService, uiController } = this.#context;
         if (!cameraService || !uiController) return;
-
+    
         if (shouldBeActive) {
-            if (!cameraService.isStreamActive()) {
+            this.#streamWasActiveBeforeDashboard = cameraService.isStreamActive();
+    
+            if (!this.#streamWasActiveBeforeDashboard) {
                 let selectedSource = uiController._cameraSourceManager.getSelectedCameraSource();
                 if (!selectedSource || selectedSource.startsWith('rtsp:')) {
                     uiController.modalManager.toggleCameraSelectModal(true);
                     return;
                 }
-                
                 try {
                     await cameraService.startStream({ cameraId: selectedSource, gestureType: 'hand' });
-                    this.#streamStartedByDashboard = true;
                 } catch (e) {
                      console.error('[Dashboard] Failed to auto-start stream for dashboard.', e);
                 }
             }
-            this.#refreshPluginData().catch(e => console.error(e));
         } else {
-            if (this.#streamStartedByDashboard && cameraService.isStreamActive()) {
+            // Only stop the stream if it was NOT running before the dashboard was opened.
+            if (!this.#streamWasActiveBeforeDashboard) {
                 await cameraService.stopStream();
             }
-            this.#streamStartedByDashboard = false;
+            this.#streamWasActiveBeforeDashboard = false;
         }
     }
-
 
     async toggleDashboard(forceState) {
         const { GESTURE_EVENTS } = this.#context.shared.constants;
@@ -238,40 +231,25 @@ export class DashboardManager {
 
         this.#isActive = shouldBeActive;
         
+        document.body.classList.toggle('dashboard-active', this.#isActive);
+        await this.#manageStreamForDashboard(this.#isActive);
+        
         if (this.#isActive) {
             pubsub.publish(GESTURE_EVENTS.SUPPRESS_ACTIONS);
+            this.#renderActionCards();
         } else {
             pubsub.publish(GESTURE_EVENTS.RESUME_ACTIONS);
         }
 
         this.#rootElement.classList.toggle('visible', this.#isActive);
-        this.#rootElement.classList.toggle('entering', this.#isActive);
+        this.#interactionManager.setEnabled(this.#isActive);
         
-        document.body.classList.toggle('dashboard-active', this.#isActive);
-
-        await this.#manageStreamForDashboard(this.#isActive);
-        
-        if (this.#isActive) {
-            this.#interactionManager.setEnabled(!this.#isEditMode);
-        } else {
-            this.#interactionManager.setEnabled(false);
-            this.#rootElement.classList.remove('entering');
-            if (this.#isEditMode) {
-                this.#toggleEditMode();
-            }
-        }
-        
-        this.#context.services.pubsub.publish('DASHBOARD_MODE_CHANGED', this.#isActive);
+        pubsub.publish('DASHBOARD_MODE_CHANGED', this.#isActive);
     }
 
-    saveLayout() {
-        const layout = this.#widgetGrid.getLayout();
-        localStorage.setItem('gesture-vision-dashboard-layout', JSON.stringify(layout));
-        this.#context.services.pubsub.publish(this.#context.shared.constants.UI_EVENTS.SHOW_NOTIFICATION, { messageKey: 'notificationItemSaved', substitutions: {item: 'Dashboard Layout'}, type: 'success' });
-    }
-    
     destroy() {
         const { GESTURE_EVENTS } = this.#context.shared.constants;
+        if (this.#unsubscribeStore) this.#unsubscribeStore();
         this.#context.services.pubsub.publish(GESTURE_EVENTS.RESUME_ACTIONS);
         this.toggleDashboard(false).catch(e => console.error(e));
         this.#interactionManager.destroy();
@@ -281,5 +259,4 @@ export class DashboardManager {
     }
 
     isActive = () => this.#isActive;
-    isEditMode = () => this.#isEditMode;
 }

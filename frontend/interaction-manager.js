@@ -1,32 +1,41 @@
 /* FILE: extensions/plugins/gesture-vision-plugin-dashboard/frontend/interaction-manager.js */
-const CURSOR_SENSITIVITY = 1.2; // 1.0 = exact mapping, > 1.0 allows reaching edges
+const CURSOR_SENSITIVITY = 1.2;
 const CURSOR_STORAGE_KEY = 'gesture-vision-dashboard-cursor-mirror';
 
 export class InteractionManager {
     #dashboardManager;
-    #widgetGrid;
-    #cursorElement;
+    #cursorElement = null;
     #isEnabled = false;
     #unsubscribePubsub;
-    #canvasElement; 
     #isMirrored;
 
-    #hoveredWidgetId = null;
+    #hoveredCardName = null;
     #dwellTimeout = null;
     #dwellInterval = null;
+    #isCooldownActive = false; // Add internal state for cooldown
 
     constructor(dashboardManager) {
         this.#dashboardManager = dashboardManager;
     }
 
     initialize() {
-        this.#widgetGrid = this.#dashboardManager.getWidgetGrid();
-        this.#canvasElement = document.getElementById('output_canvas');
         this.#isMirrored = localStorage.getItem(CURSOR_STORAGE_KEY) === 'true';
-        this.#createCursor();
 
         const { GESTURE_EVENTS } = this.#context.shared.constants;
-        this.#unsubscribePubsub = this.#context.services.pubsub.subscribe(GESTURE_EVENTS.RENDER_OUTPUT, this.#handleLandmarks.bind(this));
+        const { pubsub } = this.#context.services;
+        
+        // Unsubscribe from previous subscriptions if re-initialized
+        if (this.#unsubscribePubsub) this.#unsubscribePubsub();
+
+        const subscriptions = [
+            pubsub.subscribe(GESTURE_EVENTS.RENDER_OUTPUT, this.#handleLandmarks.bind(this)),
+            // Subscribe to progress updates to monitor global cooldown
+            pubsub.subscribe(GESTURE_EVENTS.UPDATE_PROGRESS, (data) => {
+                this.#isCooldownActive = (data?.cooldownPercent ?? 0) > 0;
+            })
+        ];
+        
+        this.#unsubscribePubsub = () => subscriptions.forEach(unsub => unsub());
     }
     
     get #context() {
@@ -34,24 +43,44 @@ export class InteractionManager {
     }
 
     #createCursor() {
+        if (this.#cursorElement) return;
         this.#cursorElement = document.createElement('div');
         this.#cursorElement.id = 'dashboard-cursor';
-        this.#dashboardManager.getRootElement()?.appendChild(this.#cursorElement);
+        document.body.appendChild(this.#cursorElement);
+    }
+    
+    #removeCursor() {
+        if (this.#cursorElement) {
+            this.#cursorElement.remove();
+            this.#cursorElement = null;
+        }
     }
 
     setEnabled(enabled) {
         this.#isEnabled = enabled;
+        if (enabled) {
+            this.#createCursor();
+        } else {
+            this.#removeCursor();
+        }
+        
         this.#cursorElement?.classList.toggle('visible', enabled);
         if (!enabled) {
             this.#clearDwellTimer();
-            this.#unhoverWidget();
+            this.#unhoverCard();
         }
     }
 
     #handleLandmarks(renderData) {
-        if (!this.#isEnabled || !this.#canvasElement || !this.#cursorElement || !renderData?.handLandmarks?.[0]) {
+        // CRITICAL FIX: If cooldown is active, do not process any interactions.
+        if (this.#isCooldownActive) {
+            this.#unhoverCard(); // Ensure any existing dwell is cancelled
+            return;
+        }
+
+        if (!this.#isEnabled || !this.#cursorElement || !renderData?.handLandmarks?.[0]) {
             this.#cursorElement?.classList.remove('visible');
-            this.#unhoverWidget();
+            this.#unhoverCard();
             return;
         }
 
@@ -82,53 +111,53 @@ export class InteractionManager {
             this.#cursorElement.style.left = `${cursorX}px`;
             this.#cursorElement.style.top = `${cursorY}px`;
 
-            this.#checkWidgetCollision(cursorX, cursorY, DWELL_TIME_MS);
+            this.#checkCardCollision(cursorX, cursorY, DWELL_TIME_MS);
         } else {
             this.#cursorElement.classList.remove('visible');
-            this.#unhoverWidget();
+            this.#unhoverCard();
         }
     }
 
-    #checkWidgetCollision(cursorX, cursorY, DWELL_TIME_MS) {
-        const widgets = this.#widgetGrid.getWidgetElements();
-        let currentlyHoveredId = null;
+    #checkCardCollision(cursorX, cursorY, DWELL_TIME_MS) {
+        const selector = '.card-item:not(.config-item-disabled):not(.config-item-unavailable):not(.plugin-missing)';
+        const cards = this.#dashboardManager.getRootElement().querySelectorAll(selector);
+        let currentlyHoveredName = null;
 
-        for (const widget of widgets) {
-            const rect = widget.getBoundingClientRect();
+        for (const card of cards) {
+            const rect = card.getBoundingClientRect();
             if (cursorX > rect.left && cursorX < rect.right && cursorY > rect.top && cursorY < rect.bottom) {
-                currentlyHoveredId = widget.dataset.widgetId;
+                currentlyHoveredName = (/** @type {HTMLElement} */ (card)).dataset.gestureName ?? null;
                 break;
             }
         }
 
-        if (currentlyHoveredId !== this.#hoveredWidgetId) {
-            this.#unhoverWidget();
-            if (currentlyHoveredId) {
-                this.#hoverWidget(currentlyHoveredId, DWELL_TIME_MS);
+        if (currentlyHoveredName !== this.#hoveredCardName) {
+            this.#unhoverCard();
+            if (currentlyHoveredName) {
+                this.#hoverCard(currentlyHoveredName, DWELL_TIME_MS);
             }
         }
     }
 
-    #hoverWidget(widgetId, DWELL_TIME_MS) {
-        this.#hoveredWidgetId = widgetId;
-        const widget = this.#widgetGrid.getWidgetById(widgetId);
-        const widgetElement = widget?.getElement();
-        if (widgetElement) {
-            widgetElement.classList.add('hover');
-            if (widgetElement.classList.contains('active-state')) {
+    #hoverCard(gestureName, DWELL_TIME_MS) {
+        this.#hoveredCardName = gestureName;
+        const cardElement = this.#dashboardManager.getRootElement().querySelector(`.card-item[data-gesture-name="${CSS.escape(gestureName)}"]`);
+        if (cardElement) {
+            cardElement.classList.add('hover');
+            if (cardElement.classList.contains('active-state')) {
                 this.#cursorElement?.classList.add('high-contrast');
             }
         }
         this.#startDwellTimer(DWELL_TIME_MS);
     }
 
-    #unhoverWidget() {
-        if (this.#hoveredWidgetId) {
-            const widget = this.#widgetGrid.getWidgetById(this.#hoveredWidgetId);
-            widget?.getElement()?.classList.remove('hover');
+    #unhoverCard() {
+        if (this.#hoveredCardName) {
+            const cardElement = this.#dashboardManager.getRootElement().querySelector(`.card-item[data-gesture-name="${CSS.escape(this.#hoveredCardName)}"]`);
+            cardElement?.classList.remove('hover');
         }
         this.#cursorElement?.classList.remove('high-contrast');
-        this.#hoveredWidgetId = null;
+        this.#hoveredCardName = null;
         this.#clearDwellTimer();
     }
 
@@ -144,7 +173,7 @@ export class InteractionManager {
         }, 16);
 
         this.#dwellTimeout = setTimeout(() => {
-            this.#handleClick();
+            this.#triggerAction();
         }, DWELL_TIME_MS);
     }
 
@@ -157,18 +186,53 @@ export class InteractionManager {
         this.#cursorElement?.style.setProperty('--progress', 0);
     }
 
-    #handleClick() {
-        if (!this.#hoveredWidgetId) return;
+    #triggerAction() {
+        if (!this.#hoveredCardName) return;
 
-        const widget = this.#widgetGrid.getWidgetById(this.#hoveredWidgetId);
+        const { webSocketService, services, coreStateManager } = this.#context;
+        const gestureConfig = coreStateManager.getState().gestureConfigs.find(c => (c.gesture || c.pose) === this.#hoveredCardName);
         
-        if (widget) {
-            widget.dispatchAction();
+        if (gestureConfig && gestureConfig.actionConfig) {
+            const cardElement = this.#dashboardManager.getRootElement().querySelector(`.card-item[data-gesture-name="${CSS.escape(this.#hoveredCardName)}"]`);
+            cardElement?.classList.add('widget-triggered');
+            setTimeout(() => cardElement?.classList.remove('widget-triggered'), 400);
+
+            const { GESTURE_EVENTS } = this.#context.shared.constants;
+            
+            services.pubsub.publish(GESTURE_EVENTS.DETECTED_ALERT, {
+                gesture: this.#hoveredCardName,
+                actionType: gestureConfig.actionConfig.pluginId
+            });
+            
+            services.pubsub.publish(GESTURE_EVENTS.ACTION_TRIGGERED_BY_PLUGIN, { gestureName: this.#hoveredCardName });
+
+            const { getGestureDisplayInfo } = this.#context.shared.services.actionDisplayUtils;
+            const { category } = getGestureDisplayInfo(this.#hoveredCardName, coreStateManager.getState().customGestureMetadataList);
+
+            const historyEntryPayload = {
+                gesture: this.#hoveredCardName,
+                actionType: gestureConfig.actionConfig.pluginId,
+                gestureCategory: category,
+                details: gestureConfig.actionConfig,
+            };
+            coreStateManager.getState().actions.addHistoryEntry(historyEntryPayload);
+
+            const actionDetails = {
+                gestureName: this.#hoveredCardName,
+                confidence: 1.0,
+                timestamp: Date.now()
+            };
+            
+            if (webSocketService) {
+                webSocketService.sendDispatchAction(gestureConfig, actionDetails);
+            } else {
+                 console.error("[Dashboard] WebSocketService is not available.");
+            }
         }
         
-        this.#unhoverWidget();
+        this.#unhoverCard();
     }
-
+    
     toggleMirroring() {
         this.#isMirrored = !this.#isMirrored;
         localStorage.setItem(CURSOR_STORAGE_KEY, this.#isMirrored);
@@ -186,6 +250,6 @@ export class InteractionManager {
         if (typeof this.#unsubscribePubsub === 'function') {
             this.#unsubscribePubsub();
         }
-        this.#cursorElement?.remove();
+        this.#removeCursor();
     }
 }
