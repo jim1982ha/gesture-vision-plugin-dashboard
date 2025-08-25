@@ -15,6 +15,7 @@ export class DashboardManager {
     #currentCardSize = 'medium';
     #unsubscribeStore;
     #streamWasActiveBeforeDashboard = false;
+    #isSizeDropdownOpen = false;
 
     constructor(context) {
         this.#context = context;
@@ -94,6 +95,10 @@ export class DashboardManager {
         const buttonContainer = this.#toolbar.querySelector('#dashboard-toolbar-buttons');
         if (!buttonContainer) return;
 
+        // --- Desktop Controls ---
+        const desktopControls = document.createElement('div');
+        desktopControls.className = 'dashboard-desktop-controls'; // MODIFICATION: Simplified class name
+        
         const cardSizeGroup = document.createElement('div');
         cardSizeGroup.className = 'button-toggle-group';
         cardSizeGroup.id = 'dashboard-card-size-toggle';
@@ -110,18 +115,70 @@ export class DashboardManager {
         const mirrorCursorButton = document.createElement('button');
         mirrorCursorButton.className = 'btn btn-secondary';
         mirrorCursorButton.id = 'dashboard-mirror-cursor-btn';
-        
         const mirrorIconSpan = document.createElement('span');
         uiComponents.setIcon(mirrorIconSpan, 'UI_VIDEO_MIRROR');
-        
         const mirrorTextSpan = document.createElement('span');
         mirrorTextSpan.textContent = services.translate('mirrorCursor');
-        
         mirrorCursorButton.append(mirrorIconSpan, mirrorTextSpan);
         mirrorCursorButton.addEventListener('click', () => this.#interactionManager.toggleMirroring());
+        desktopControls.append(cardSizeGroup, mirrorCursorButton);
+
+        // --- Mobile Controls ---
+        const mobileControls = document.createElement('div');
+        mobileControls.className = 'dashboard-mobile-controls'; // MODIFICATION: Simplified class name
+
+        const mobileSizeDropdownContainer = document.createElement('div');
+        mobileSizeDropdownContainer.className = 'dashboard-size-dropdown-container';
         
-        buttonContainer.append(cardSizeGroup, mirrorCursorButton);
+        const mobileSizeTrigger = document.createElement('button');
+        mobileSizeTrigger.className = 'btn btn-secondary btn-icon';
+        mobileSizeTrigger.id = 'dashboard-size-trigger-mobile';
+        mobileSizeTrigger.title = services.translate('widgetSizeLabel');
+        uiComponents.setIcon(mobileSizeTrigger, 'UI_TUNE');
+        mobileSizeTrigger.addEventListener('click', (e) => { e.stopPropagation(); this.#toggleSizeDropdown(); });
+
+        const mobileSizePanel = document.createElement('div');
+        mobileSizePanel.id = 'dashboard-size-panel-mobile';
+        mobileSizePanel.className = 'dashboard-size-dropdown hidden';
+        ['small', 'medium', 'large'].forEach(size => {
+            const btn = document.createElement('button');
+            btn.className = 'btn btn-secondary';
+            btn.textContent = services.translate(`widgetSize${size.charAt(0).toUpperCase() + size.slice(1)}`);
+            btn.addEventListener('click', () => { this.#setCardSize(size); this.#toggleSizeDropdown(false); });
+            mobileSizePanel.appendChild(btn);
+        });
+
+        mobileSizeDropdownContainer.append(mobileSizeTrigger, mobileSizePanel);
+
+        const mobileMirrorButton = document.createElement('button');
+        mobileMirrorButton.id = 'dashboard-mirror-cursor-btn-mobile';
+        mobileMirrorButton.className = 'btn btn-secondary btn-icon';
+        mobileMirrorButton.title = services.translate('mirrorCursor');
+        uiComponents.setIcon(mobileMirrorButton, 'UI_VIDEO_MIRROR');
+        mobileMirrorButton.addEventListener('click', () => this.#interactionManager.toggleMirroring());
+        
+        mobileControls.append(mobileSizeDropdownContainer, mobileMirrorButton);
+        
+        buttonContainer.append(desktopControls, mobileControls);
+
         this.#interactionManager.updateMirrorButtonState();
+        document.addEventListener('click', this.#handleClickOutsideSizeDropdown.bind(this));
+    }
+    
+    #toggleSizeDropdown(forceState) {
+        this.#isSizeDropdownOpen = forceState !== undefined ? forceState : !this.#isSizeDropdownOpen;
+        const panel = this.#toolbar.querySelector('#dashboard-size-panel-mobile');
+        panel?.classList.toggle('hidden', !this.#isSizeDropdownOpen);
+        panel?.classList.toggle('visible', this.#isSizeDropdownOpen);
+    }
+
+    #handleClickOutsideSizeDropdown(event) {
+        if (this.#isSizeDropdownOpen) {
+            const container = this.#toolbar.querySelector('.dashboard-size-dropdown-container');
+            if (container && !container.contains(event.target)) {
+                this.#toggleSizeDropdown(false);
+            }
+        }
     }
     
     #handleCardClick = (event) => {
@@ -172,7 +229,6 @@ export class DashboardManager {
             return;
         }
         
-        // REFACTORED: Use the core renderer with the new option
         await uiController.renderConfigListToContainer(this.#cardContainer, filteredConfigs, { swapTitleAndFooter: true });
     }
     
@@ -252,6 +308,7 @@ export class DashboardManager {
     destroy() {
         const { GESTURE_EVENTS } = this.#context.shared.constants;
         if (this.#unsubscribeStore) this.#unsubscribeStore();
+        document.removeEventListener('click', this.#handleClickOutsideSizeDropdown.bind(this));
         this.#context.services.pubsub.publish(GESTURE_EVENTS.RESUME_ACTIONS);
         this.toggleDashboard(false).catch(e => console.error(e));
         this.#interactionManager.destroy();

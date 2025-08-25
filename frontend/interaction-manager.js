@@ -240,10 +240,13 @@ export class InteractionManager {
     }
     
     updateMirrorButtonState() {
-        const button = document.getElementById('dashboard-mirror-cursor-btn');
-        if (button) {
-            button.classList.toggle('active', this.#isMirrored);
-        }
+        // MODIFICATION: Target both desktop and mobile buttons to keep them in sync.
+        const buttons = document.querySelectorAll('#dashboard-mirror-cursor-btn, #dashboard-mirror-cursor-btn-mobile');
+        buttons.forEach(button => {
+            if (button) {
+                button.classList.toggle('active', this.#isMirrored);
+            }
+        });
     }
 
     destroy() {

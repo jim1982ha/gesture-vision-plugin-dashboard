@@ -69,16 +69,12 @@ body.dashboard-active #desktopConfigListTitle {
     align-items: center;
     gap: var(--space-sm);
 }
-.dashboard-header-left { flex: 1 1 0; justify-content: flex-start; }
-.dashboard-header-right { flex: 1 1 0; justify-content: flex-end; }
-#dashboard-toolbar-buttons { display: flex; align-items: center; gap: var(--space-sm); }
-.dashboard-title {
-    font-size: var(--font-size-large);
-    font-weight: var(--font-weight-semibold);
-    color: var(--text-primary);
-    text-align: center;
-    flex-shrink: 0;
-}
+
+.dashboard-header-left { flex: 1 1 auto; justify-content: flex-start; min-width: 0; }
+.dashboard-title { text-align: center; flex-shrink: 0; }
+.dashboard-header-right { flex: 1 1 auto; justify-content: flex-end; min-width: 0; }
+#dashboard-toolbar-buttons { display: flex; align-items: center; gap: var(--space-sm); flex-shrink: 0; }
+
 
 #dashboard-camera-selector-container {
     position: relative;
@@ -121,26 +117,21 @@ body.dashboard-active #desktopConfigListTitle {
 
 .config-list.dashboard-card-container {
     overflow-y: auto;
-    padding: var(--space-sm);
-    /* flex-grow: 1; */
+    padding: var(--space-md);
+    display: grid;
+    gap: var(--space-sm);
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    align-content: start;
 }
 
-/* Hide inactive cards specifically in the dashboard */
 .dashboard-card-container .config-item-unavailable,
 .dashboard-card-container .plugin-missing {
     display: none !important;
 }
 
-/* REFACTORED: Sizing rules now use height and are remapped */
-.config-list.card-size-small .card-item {
-    height: 150px;
-}
-.config-list.card-size-medium .card-item {
-    height: 180px;
-}
-.config-list.card-size-large .card-item {
-    height: 210px;
-}
+.config-list.card-size-small .card-item { height: 150px; }
+.config-list.card-size-medium .card-item { height: 180px; }
+.config-list.card-size-large .card-item { height: 210px; }
 
 #dashboard-cursor {
     position: fixed;
@@ -156,12 +147,10 @@ body.dashboard-active #desktopConfigListTitle {
     background: radial-gradient(closest-side, white 60%, transparent 0 99.9%),
                 conic-gradient(var(--primary) calc(var(--progress) * 100%), rgba(var(--primary-rgb), 0.3) 0);
 }
-
 #dashboard-cursor.high-contrast {
     background: radial-gradient(closest-side, white 60%, transparent 0 99.9%),
                 conic-gradient(var(--text-on-primary) calc(var(--progress) * 100%), rgba(var(--text-on-primary-rgb, 255, 255, 255), 0.4) 0);
 }
-
 #dashboard-cursor.visible { opacity: 1; }
 #dashboard-cursor.dwelling { animation: pulse 1s infinite; }
 @keyframes pulse {
@@ -171,18 +160,45 @@ body.dashboard-active #desktopConfigListTitle {
 }
 
 .dashboard-empty-state {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    gap: var(--space-md);
-    padding: var(--space-xl);
-    color: var(--text-secondary);
+    width: 100%; height: 100%; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center;
+    gap: var(--space-md); padding: var(--space-xl); color: var(--text-secondary);
+    grid-column: 1 / -1;
 }
-.dashboard-empty-state p {
-    font-size: var(--font-size-medium);
-    max-width: 400px;
+.dashboard-empty-state p { font-size: var(--font-size-medium); max-width: 400px; }
+
+/* --- Responsive Toolbar Controls --- */
+.dashboard-desktop-controls { display: none; }
+.dashboard-mobile-controls { display: flex; align-items: center; gap: var(--space-sm); }
+.dashboard-title { display: none; }
+
+.dashboard-size-dropdown-container { position: relative; }
+.dashboard-size-dropdown {
+    position: absolute; top: calc(100% + 4px); right: 0;
+    z-index: var(--z-dropdown); background-color: var(--surface);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow-strong); min-width: 150px;
+    display: flex; flex-direction: column; gap: var(--space-xs);
+    padding: var(--space-xs);
+}
+
+@media screen and (min-width: 769px) {
+    .dashboard-desktop-controls { display: flex; align-items: center; gap: var(--space-sm); }
+    .dashboard-mobile-controls { display: none; }
+    .dashboard-title { display: block; }
+}
+@media (max-width: 768px) {
+    .dashboard-title { display: none; }
+    
+    .dashboard-camera-trigger {
+        width: var(--button-icon-size);
+        height: var(--button-icon-size);
+        min-width: var(--button-icon-size);
+        padding: var(--button-icon-padding);
+        justify-content: center;
+    }
+    .dashboard-camera-trigger .camera-name,
+    .dashboard-camera-trigger .dropdown-arrow {
+        display: none;
+    }
 }
