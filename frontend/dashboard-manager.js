@@ -165,12 +165,15 @@ export class DashboardManager {
         this.#cardContainer.innerHTML = '';
         const configs = coreStateManager.getState().gestureConfigs;
         
-        if (!configs || configs.length === 0) {
+        const filteredConfigs = configs.filter(c => (c.gesture || c.pose) !== 'POINTING_UP');
+
+        if (!filteredConfigs || filteredConfigs.length === 0) {
             this.#renderEmptyState();
             return;
         }
-
-        await uiController.renderConfigListToContainer(this.#cardContainer, configs);
+        
+        // REFACTORED: Use the core renderer with the new option
+        await uiController.renderConfigListToContainer(this.#cardContainer, filteredConfigs, { swapTitleAndFooter: true });
     }
     
     #renderEmptyState() {
@@ -214,7 +217,6 @@ export class DashboardManager {
                 }
             }
         } else {
-            // Only stop the stream if it was NOT running before the dashboard was opened.
             if (!this.#streamWasActiveBeforeDashboard) {
                 await cameraService.stopStream();
             }

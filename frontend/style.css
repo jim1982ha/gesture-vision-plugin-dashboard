@@ -16,7 +16,6 @@
     transition: opacity 0.3s ease, visibility 0s linear 0.3s;
 }
 
-/* CORRECTED RULE: Targets the correct elements to hide the main video feed. */
 body.dashboard-active .main-content > .video-container,
 body.dashboard-active #liveFeedTitle,
 body.dashboard-active #configListContainer,
@@ -123,17 +122,25 @@ body.dashboard-active #desktopConfigListTitle {
 .config-list.dashboard-card-container {
     overflow-y: auto;
     padding: var(--space-sm);
-    flex-grow: 1;
+    /* flex-grow: 1; */
 }
 
+/* Hide inactive cards specifically in the dashboard */
+.dashboard-card-container .config-item-unavailable,
+.dashboard-card-container .plugin-missing {
+    display: none !important;
+}
+
+/* REFACTORED: Sizing rules now use height and are remapped */
+.config-list.card-size-small .card-item {
+    height: 150px;
+}
 .config-list.card-size-medium .card-item {
-    min-height: 150px;
+    height: 180px;
 }
-
 .config-list.card-size-large .card-item {
-    min-height: 180px;
+    height: 210px;
 }
-
 
 #dashboard-cursor {
     position: fixed;
