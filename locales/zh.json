@@ -1,7 +1,7 @@
 {
     "pluginDashboardName": "仪表盘",
     "pluginDashboardDescription": "提供一个带有小部件的交互式界面覆盖层来控制操作。",
-    "dashboardMode": "仪表盘模式",
+    "dashboardMode": "仪表板",
     "widgetSizeLabel": "卡片大小",
     "widgetSizeSmall": "小",
     "widgetSizeMedium": "中",

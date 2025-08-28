@@ -1,7 +1,7 @@
 {
     "pluginDashboardName": "Dashboard",
     "pluginDashboardDescription": "Provides an interactive UI overlay with widgets to control actions.",
-    "dashboardMode": "Dashboard Mode",
+    "dashboardMode": "Dashboard",
     "widgetSizeLabel": "Card Size",
     "widgetSizeSmall": "S",
     "widgetSizeMedium": "M",

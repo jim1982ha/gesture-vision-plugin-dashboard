@@ -201,4 +201,14 @@ body.dashboard-active #desktopConfigListTitle {
     .dashboard-camera-trigger .dropdown-arrow {
         display: none;
     }
+
+    #dashboard-mode-toggle-btn .dashboard-button-text {
+        display: none;
+    }
+    #dashboard-mode-toggle-btn {
+        width: var(--button-icon-size);
+        height: var(--button-icon-size);
+        min-width: var(--button-icon-size);
+        padding: var(--button-icon-padding);
+    }
 }

@@ -1,7 +1,7 @@
 {
     "pluginDashboardName": "Tableau de Bord",
     "pluginDashboardDescription": "Fournit une superposition d'interface interactive avec des widgets pour contrôler les actions.",
-    "dashboardMode": "Mode Tableau de Bord",
+    "dashboardMode": "Dashboard",
     "widgetSizeLabel": "Taille Carte",
     "widgetSizeSmall": "P",
     "widgetSizeMedium": "M",
