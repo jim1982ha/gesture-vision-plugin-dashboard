@@ -1,6 +1,11 @@
 /* FILE: extensions/plugins/gesture-vision-plugin-dashboard/frontend/interaction-manager.js */
-const CURSOR_SENSITIVITY = 1.2;
+const SMOOTHING_FACTOR = 0.3; // Lower is smoother but laggier, higher is more responsive but jittery. 0.3 is a good balance.
 const CURSOR_STORAGE_KEY = 'gesture-vision-dashboard-cursor-mirror';
+
+// Amplifies hand movements. A value of 2.0 means moving your hand across half the
+// video's width will move the cursor across the entire dashboard width.
+// This creates a "moving window" of interaction relative to the hand's position.
+const GESTURE_SENSITIVITY = 2.5;
 
 export class InteractionManager {
     #dashboardManager;
@@ -8,11 +13,14 @@ export class InteractionManager {
     #isEnabled = false;
     #unsubscribePubsub;
     #isMirrored;
+    #cursorX = 0;
+    #cursorY = 0;
+    #isCursorInitialized = false;
 
     #hoveredCardName = null;
     #dwellTimeout = null;
     #dwellInterval = null;
-    #isCooldownActive = false; // Add internal state for cooldown
+    #isCooldownActive = false;
 
     constructor(dashboardManager) {
         this.#dashboardManager = dashboardManager;
@@ -24,12 +32,10 @@ export class InteractionManager {
         const { GESTURE_EVENTS } = this.#context.shared.constants;
         const { pubsub } = this.#context.services;
         
-        // Unsubscribe from previous subscriptions if re-initialized
         if (this.#unsubscribePubsub) this.#unsubscribePubsub();
 
         const subscriptions = [
             pubsub.subscribe(GESTURE_EVENTS.RENDER_OUTPUT, this.#handleLandmarks.bind(this)),
-            // Subscribe to progress updates to monitor global cooldown
             pubsub.subscribe(GESTURE_EVENTS.UPDATE_PROGRESS, (data) => {
                 this.#isCooldownActive = (data?.cooldownPercent ?? 0) > 0;
             })
@@ -68,51 +74,72 @@ export class InteractionManager {
         if (!enabled) {
             this.#clearDwellTimer();
             this.#unhoverCard();
+            this.#isCursorInitialized = false;
         }
     }
 
     #handleLandmarks(renderData) {
-        // CRITICAL FIX: If cooldown is active, do not process any interactions.
         if (this.#isCooldownActive) {
-            this.#unhoverCard(); // Ensure any existing dwell is cancelled
-            return;
-        }
-
-        if (!this.#isEnabled || !this.#cursorElement || !renderData?.handLandmarks?.[0]) {
-            this.#cursorElement?.classList.remove('visible');
             this.#unhoverCard();
             return;
         }
-
-        const landmarks = renderData.handLandmarks[0];
-        const indexFingertip = landmarks[8];
+    
+        if (!this.#isEnabled || !this.#cursorElement) {
+            this.#cursorElement?.classList.remove('visible');
+            this.#unhoverCard();
+            this.#isCursorInitialized = false;
+            return;
+        }
+        
+        const { normalizeNameForMtx } = this.#context.shared.utils;
+        const pointerGestureName = this.#dashboardManager.getPointerGestureName();
+        const pointerGestureKey = normalizeNameForMtx(pointerGestureName);
+        
+        const isPointerGestureActive = renderData?.handGestureResults?.gestures?.[0]?.some(
+            (g) => g.categoryName && normalizeNameForMtx(g.categoryName) === pointerGestureKey
+        );
+        
+        const indexFingertip = renderData?.handLandmarks?.[0]?.[8];
         const DWELL_TIME_MS = 1000;
-
-        if (indexFingertip) {
+    
+        if (isPointerGestureActive && indexFingertip) {
             this.#cursorElement.classList.add('visible');
             
-            const dashboardRect = this.#dashboardManager.getRootElement().getBoundingClientRect();
+            // MODIFIED: Use the entire content wrapper as the interaction area.
+            const interactionArea = this.#dashboardManager.getContentWrapperElement();
+            if (!interactionArea) return;
+            const containerRect = interactionArea.getBoundingClientRect();
             
-            const centeredX = indexFingertip.x - 0.5;
-            const centeredY = indexFingertip.y - 0.5;
-            let finalX = 0.5 + centeredX * CURSOR_SENSITIVITY;
-            let finalY = 0.5 + centeredY * CURSOR_SENSITIVITY;
+            // Apply sensitivity to amplify hand movements relative to the video center.
+            const scaledX = (indexFingertip.x - 0.5) * GESTURE_SENSITIVITY + 0.5;
+            const scaledY = (indexFingertip.y - 0.5) * GESTURE_SENSITIVITY + 0.5;
 
+            // Clamp the coordinates to the [0.0, 1.0] range to keep the pointer within bounds.
+            const normalizedX = Math.max(0, Math.min(1, scaledX));
+            const normalizedY = Math.max(0, Math.min(1, scaledY));
+
+            let targetX = containerRect.left + normalizedX * containerRect.width;
+            const targetY = containerRect.top + normalizedY * containerRect.height;
+    
             if (this.#isMirrored) {
-                finalX = 1 - finalX;
+                targetX = containerRect.left + (1 - normalizedX) * containerRect.width;
             }
-
-            finalX = Math.max(0, Math.min(1, finalX));
-            finalY = Math.max(0, Math.min(1, finalY));
-
-            const cursorX = dashboardRect.left + finalX * dashboardRect.width;
-            const cursorY = dashboardRect.top + finalY * dashboardRect.height;
+    
+            if (!this.#isCursorInitialized) {
+                this.#cursorX = targetX;
+                this.#cursorY = targetY;
+                this.#isCursorInitialized = true;
+            } else {
+                this.#cursorX += (targetX - this.#cursorX) * SMOOTHING_FACTOR;
+                this.#cursorY += (targetY - this.#cursorY) * SMOOTHING_FACTOR;
+            }
             
-            this.#cursorElement.style.left = `${cursorX}px`;
-            this.#cursorElement.style.top = `${cursorY}px`;
-
-            this.#checkCardCollision(cursorX, cursorY, DWELL_TIME_MS);
+            this.#cursorElement.style.left = `${this.#cursorX}px`;
+            this.#cursorElement.style.top = `${this.#cursorY}px`;
+    
+            this.#checkCardCollision(this.#cursorX, this.#cursorY, DWELL_TIME_MS);
         } else {
+            this.#isCursorInitialized = false;
             this.#cursorElement.classList.remove('visible');
             this.#unhoverCard();
         }
@@ -240,7 +267,6 @@ export class InteractionManager {
     }
     
     updateMirrorButtonState() {
-        // MODIFICATION: Target both desktop and mobile buttons to keep them in sync.
         const buttons = document.querySelectorAll('#dashboard-mirror-cursor-btn, #dashboard-mirror-cursor-btn-mobile');
         buttons.forEach(button => {
             if (button) {

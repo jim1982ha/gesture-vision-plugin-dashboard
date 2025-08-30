@@ -22,12 +22,16 @@ export class DashboardCameraSelector {
     #createUI() {
         this.#container.innerHTML = `
             <button class="btn btn-secondary dashboard-camera-trigger" aria-haspopup="true" aria-expanded="false">
-                <span class="material-icons">videocam</span>
+                <span class="material-icons"></span>
                 <span class="camera-name"></span>
-                <span class="material-icons dropdown-arrow">arrow_drop_down</span>
+                <span class="material-icons dropdown-arrow"></span>
             </button>
             <div class="dashboard-camera-panel hidden" role="menu"></div>
         `;
+        const { setIcon } = this.#context.uiComponents;
+        setIcon(this.#container.querySelector('.material-icons:not(.dropdown-arrow)'), 'UI_VIDEOCAM');
+        setIcon(this.#container.querySelector('.dropdown-arrow'), 'UI_ARROW_DROP_DOWN');
+
         this.#triggerButton = this.#container.querySelector('.dashboard-camera-trigger');
         this.#cameraNameSpan = this.#container.querySelector('.camera-name');
         this.#dropdownPanel = this.#container.querySelector('.dashboard-camera-panel');
@@ -48,8 +52,9 @@ export class DashboardCameraSelector {
         const { cameraService, uiController } = this.#context;
         if (!cameraService || !uiController) return;
 
-        const allSources = uiController._cameraSourceManager.getCombinedDeviceMap();
-        const activeSourceId = cameraService.isStreamActive() ? cameraService.getWebcamManager()._currentDeviceId : null;
+        const cameraManager = cameraService.getCameraManager();
+        const allSources = cameraManager.getCameraSourceManager().getCombinedDeviceMap();
+        const activeSourceId = cameraService.isStreamActive() ? cameraManager.getCurrentDeviceId() : null;
         
         const activeLabel = activeSourceId ? allSources.get(activeSourceId) || 'Unknown Source' : 'No Stream Active';
         this.#cameraNameSpan.textContent = activeLabel;
@@ -68,7 +73,7 @@ export class DashboardCameraSelector {
     }
 
     #handleSourceSelect(deviceId) {
-        this.#context.cameraService.startStream({ cameraId: deviceId, gestureType: 'hand' })
+        this.#context.cameraService.startStream({ cameraId: deviceId })
             .catch(e => console.error(`[Dashboard] Error switching camera:`, e));
         this.#closeDropdown();
     }

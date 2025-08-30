@@ -1,21 +1,31 @@
 /* FILE: extensions/plugins/gesture-vision-plugin-dashboard/frontend/dashboard-manager.js */
 import { InteractionManager } from './interaction-manager.js';
 import { DashboardCameraSelector } from './dashboard-camera-selector.js';
+import { PointerGestureSelector } from './pointer-gesture-selector.js';
+import { CardRenderer } from './ui/CardRenderer.js';
+import { DashboardToolbar } from './ui/DashboardToolbar.js';
 
 const CARD_SIZE_STORAGE_KEY = 'gesture-vision-dashboard-card-size';
+const POINTER_GESTURE_STORAGE_KEY = 'gesture-vision-dashboard-pointer-gesture';
 
 export class DashboardManager {
     #context;
     #rootElement;
+    #contentWrapperElement;
     #cardContainer;
-    #toolbar;
-    #interactionManager;
+    #toolbarElement;
+    
+    interactionManager;
     #cameraSelector;
+    #pointerGestureSelector;
+    #cardRenderer;
+    #toolbar;
+    
     #isActive = false;
     #currentCardSize = 'medium';
     #unsubscribeStore;
     #streamWasActiveBeforeDashboard = false;
-    #isSizeDropdownOpen = false;
+    #pointerGestureName = 'POINTING_UP';
 
     constructor(context) {
         this.#context = context;
@@ -23,15 +33,25 @@ export class DashboardManager {
     }
     
     initialize() {
-        this.#interactionManager = new InteractionManager(this);
-        const cameraSelectorContainer = this.#toolbar.querySelector('#dashboard-camera-selector-container');
+        this.interactionManager = new InteractionManager(this);
+        this.#cardRenderer = new CardRenderer(this.#cardContainer, this);
+        this.#toolbar = new DashboardToolbar(this.#toolbarElement, this);
+
+        const cameraSelectorContainer = this.#toolbarElement.querySelector('#dashboard-camera-selector-container');
         this.#cameraSelector = new DashboardCameraSelector(cameraSelectorContainer, this);
         
-        this.#interactionManager.initialize();
-        this.#createToolbarButtons();
+        const pointerGestureSelectorContainer = this.#toolbarElement.querySelector('#dashboard-pointer-gesture-selector-container');
+        this.#pointerGestureSelector = new PointerGestureSelector(pointerGestureSelectorContainer, this);
+
+        this.interactionManager.initialize();
+        this.#toolbar.initialize();
         
-        this.#toolbar.querySelector('#dashboard-close-btn')?.addEventListener('click', () => this.toggleDashboard(false));
-        this.#cardContainer.addEventListener('click', this.#handleCardClick);
+        // FIX: Add the missing setIcon call for the close button.
+        const closeBtn = this.#toolbarElement.querySelector('#dashboard-close-btn');
+        if (closeBtn) {
+            this.getContext().uiComponents.setIcon(closeBtn, 'UI_CLOSE');
+            closeBtn.addEventListener('click', () => this.toggleDashboard(false));
+        }
         
         const store = this.#context.coreStateManager;
         
@@ -42,163 +62,38 @@ export class DashboardManager {
                     state.enableBuiltInHandGestures !== prevState.enableBuiltInHandGestures ||
                     state.enableCustomHandGestures !== prevState.enableCustomHandGestures ||
                     state.enablePoseProcessing !== prevState.enablePoseProcessing;
+                const languageChanged = state.languagePreference !== prevState.languagePreference;
 
                 if (this.#isActive && (configsChanged || featuresChanged)) {
-                    this.#renderActionCards();
+                    this.#cardRenderer.render();
+                    this.#pointerGestureSelector.update();
+                }
+                if (languageChanged) {
+                    this.#toolbar.applyTranslations();
+                    this.#pointerGestureSelector.applyTranslations();
                 }
             }
         );
         
         this.#loadCardSizePreference();
+        this.#loadPointerGesturePreference();
         this.#updateCardSizeUI();
     }
 
     getContext() { return this.#context; }
     getRootElement() { return this.#rootElement; }
-
-    #createUI() {
-        this.#rootElement = document.createElement('div');
-        this.#rootElement.id = 'dashboard-plugin-root';
-
-        const contentWrapper = document.createElement('div');
-        contentWrapper.className = 'dashboard-content-wrapper';
-        
-        this.#toolbar = document.createElement('div');
-        this.#toolbar.className = 'dashboard-toolbar';
-        
-        const { services, manifest } = this.#context;
-        const title = services.translate(manifest.nameKey, { defaultValue: 'Dashboard' });
-
-        this.#toolbar.innerHTML = `
-            <div class="dashboard-header-left">
-                <div id="dashboard-camera-selector-container"></div>
-            </div>
-            <h3 class="dashboard-title">${title}</h3>
-            <div class="dashboard-header-right">
-                <div id="dashboard-toolbar-buttons"></div>
-                <button id="dashboard-close-btn" class="btn btn-icon header-close-btn" aria-label="${services.translate('close')}">
-                    <span class="mdi mdi-close"></span>
-                </button>
-            </div>
-        `;
-        
-        this.#cardContainer = document.createElement('div');
-        this.#cardContainer.className = 'config-list dashboard-card-container';
-        
-        contentWrapper.append(this.#toolbar, this.#cardContainer);
-        this.#rootElement.appendChild(contentWrapper);
-        document.body.appendChild(this.#rootElement);
-    }
-
-    #createToolbarButtons() {
-        const { services, uiComponents } = this.#context;
-        const buttonContainer = this.#toolbar.querySelector('#dashboard-toolbar-buttons');
-        if (!buttonContainer) return;
-
-        // --- Desktop Controls ---
-        const desktopControls = document.createElement('div');
-        desktopControls.className = 'dashboard-desktop-controls'; // MODIFICATION: Simplified class name
-        
-        const cardSizeGroup = document.createElement('div');
-        cardSizeGroup.className = 'button-toggle-group';
-        cardSizeGroup.id = 'dashboard-card-size-toggle';
-        
-        ['small', 'medium', 'large'].forEach(size => {
-            const button = document.createElement('button');
-            button.className = 'btn btn-secondary';
-            button.dataset.value = size;
-            button.textContent = services.translate(`widgetSize${size.charAt(0).toUpperCase() + size.slice(1)}`);
-            button.addEventListener('click', () => this.#setCardSize(size));
-            cardSizeGroup.appendChild(button);
-        });
-        
-        const mirrorCursorButton = document.createElement('button');
-        mirrorCursorButton.className = 'btn btn-secondary';
-        mirrorCursorButton.id = 'dashboard-mirror-cursor-btn';
-        const mirrorIconSpan = document.createElement('span');
-        uiComponents.setIcon(mirrorIconSpan, 'UI_VIDEO_MIRROR');
-        const mirrorTextSpan = document.createElement('span');
-        mirrorTextSpan.textContent = services.translate('mirrorCursor');
-        mirrorCursorButton.append(mirrorIconSpan, mirrorTextSpan);
-        mirrorCursorButton.addEventListener('click', () => this.#interactionManager.toggleMirroring());
-        desktopControls.append(cardSizeGroup, mirrorCursorButton);
-
-        // --- Mobile Controls ---
-        const mobileControls = document.createElement('div');
-        mobileControls.className = 'dashboard-mobile-controls'; // MODIFICATION: Simplified class name
-
-        const mobileSizeDropdownContainer = document.createElement('div');
-        mobileSizeDropdownContainer.className = 'dashboard-size-dropdown-container';
-        
-        const mobileSizeTrigger = document.createElement('button');
-        mobileSizeTrigger.className = 'btn btn-secondary btn-icon';
-        mobileSizeTrigger.id = 'dashboard-size-trigger-mobile';
-        mobileSizeTrigger.title = services.translate('widgetSizeLabel');
-        uiComponents.setIcon(mobileSizeTrigger, 'UI_TUNE');
-        mobileSizeTrigger.addEventListener('click', (e) => { e.stopPropagation(); this.#toggleSizeDropdown(); });
-
-        const mobileSizePanel = document.createElement('div');
-        mobileSizePanel.id = 'dashboard-size-panel-mobile';
-        mobileSizePanel.className = 'dashboard-size-dropdown hidden';
-        ['small', 'medium', 'large'].forEach(size => {
-            const btn = document.createElement('button');
-            btn.className = 'btn btn-secondary';
-            btn.textContent = services.translate(`widgetSize${size.charAt(0).toUpperCase() + size.slice(1)}`);
-            btn.addEventListener('click', () => { this.#setCardSize(size); this.#toggleSizeDropdown(false); });
-            mobileSizePanel.appendChild(btn);
-        });
-
-        mobileSizeDropdownContainer.append(mobileSizeTrigger, mobileSizePanel);
-
-        const mobileMirrorButton = document.createElement('button');
-        mobileMirrorButton.id = 'dashboard-mirror-cursor-btn-mobile';
-        mobileMirrorButton.className = 'btn btn-secondary btn-icon';
-        mobileMirrorButton.title = services.translate('mirrorCursor');
-        uiComponents.setIcon(mobileMirrorButton, 'UI_VIDEO_MIRROR');
-        mobileMirrorButton.addEventListener('click', () => this.#interactionManager.toggleMirroring());
-        
-        mobileControls.append(mobileSizeDropdownContainer, mobileMirrorButton);
-        
-        buttonContainer.append(desktopControls, mobileControls);
-
-        this.#interactionManager.updateMirrorButtonState();
-        document.addEventListener('click', this.#handleClickOutsideSizeDropdown.bind(this));
-    }
+    getContentWrapperElement() { return this.#contentWrapperElement; }
+    getCardContainerElement() { return this.#cardContainer; }
+    getPointerGestureName() { return this.#pointerGestureName; }
     
-    #toggleSizeDropdown(forceState) {
-        this.#isSizeDropdownOpen = forceState !== undefined ? forceState : !this.#isSizeDropdownOpen;
-        const panel = this.#toolbar.querySelector('#dashboard-size-panel-mobile');
-        panel?.classList.toggle('hidden', !this.#isSizeDropdownOpen);
-        panel?.classList.toggle('visible', this.#isSizeDropdownOpen);
+    setPointerGestureName(name) {
+        this.#pointerGestureName = name;
+        localStorage.setItem(POINTER_GESTURE_STORAGE_KEY, name);
+        this.#cardRenderer.render();
+        this.#pointerGestureSelector.update();
     }
 
-    #handleClickOutsideSizeDropdown(event) {
-        if (this.#isSizeDropdownOpen) {
-            const container = this.#toolbar.querySelector('.dashboard-size-dropdown-container');
-            if (container && !container.contains(event.target)) {
-                this.#toggleSizeDropdown(false);
-            }
-        }
-    }
-    
-    #handleCardClick = (event) => {
-        const card = (event.target).closest('.card-item');
-        const gestureName = card?.dataset.gestureName;
-
-        if (gestureName) {
-            this.#context.services.pubsub.publish(this.#context.shared.constants.UI_EVENTS.REQUEST_EDIT_CONFIG, gestureName);
-        }
-    };
-
-    #loadCardSizePreference() {
-        const savedSize = localStorage.getItem(CARD_SIZE_STORAGE_KEY);
-        if (savedSize && ['small', 'medium', 'large'].includes(savedSize)) {
-            this.#currentCardSize = savedSize;
-        }
-        this.#cardContainer.classList.add(`card-size-${this.#currentCardSize}`);
-    }
-
-    #setCardSize(size) {
+    setCardSize(size) {
         if (!['small', 'medium', 'large'].includes(size)) return;
         this.#cardContainer.classList.remove(`card-size-${this.#currentCardSize}`);
         this.#currentCardSize = size;
@@ -207,50 +102,57 @@ export class DashboardManager {
         this.#updateCardSizeUI();
     }
 
+    #createUI() {
+        this.#rootElement = document.createElement('div');
+        this.#rootElement.id = 'dashboard-plugin-root';
+
+        this.#contentWrapperElement = document.createElement('div');
+        this.#contentWrapperElement.className = 'dashboard-content-wrapper';
+        
+        this.#toolbarElement = document.createElement('div');
+        this.#toolbarElement.className = 'dashboard-toolbar';
+        
+        this.#toolbarElement.innerHTML = `
+            <div class="dashboard-header-left">
+                <div id="dashboard-camera-selector-container"></div>
+                <div id="dashboard-pointer-gesture-selector-container"></div>
+            </div>
+            <h3 class="dashboard-title"></h3>
+            <div class="dashboard-header-right">
+                <div id="dashboard-toolbar-buttons"></div>
+                <button id="dashboard-close-btn" class="btn btn-icon header-close-btn">
+                    <span class="mdi"></span>
+                </button>
+            </div>
+        `;
+        
+        this.#cardContainer = document.createElement('div');
+        this.#cardContainer.className = 'config-list dashboard-card-container';
+        
+        this.#contentWrapperElement.append(this.#toolbarElement, this.#cardContainer);
+        this.#rootElement.appendChild(this.#contentWrapperElement);
+        document.body.appendChild(this.#rootElement);
+    }
+
+    #loadCardSizePreference() {
+        const savedSize = localStorage.getItem(CARD_SIZE_STORAGE_KEY);
+        if (savedSize && ['small', 'medium', 'large'].includes(savedSize)) {
+            this.#currentCardSize = savedSize;
+        }
+        this.#cardContainer.classList.add(`card-size-${this.#currentCardSize}`);
+    }
+    
+    #loadPointerGesturePreference() {
+        const savedGesture = localStorage.getItem(POINTER_GESTURE_STORAGE_KEY);
+        this.#pointerGestureName = savedGesture || 'POINTING_UP';
+    }
+
     #updateCardSizeUI() {
         const { uiComponents } = this.#context;
         const sizeToggle = document.getElementById('dashboard-card-size-toggle');
         if (sizeToggle && uiComponents) {
             uiComponents.updateButtonGroupActiveState(sizeToggle, this.#currentCardSize);
         }
-    }
-
-    async #renderActionCards() {
-        const { uiController, coreStateManager } = this.#context;
-        if (!uiController || !coreStateManager) return;
-
-        this.#cardContainer.innerHTML = '';
-        const configs = coreStateManager.getState().gestureConfigs;
-        
-        const filteredConfigs = configs.filter(c => (c.gesture || c.pose) !== 'POINTING_UP');
-
-        if (!filteredConfigs || filteredConfigs.length === 0) {
-            this.#renderEmptyState();
-            return;
-        }
-        
-        await uiController.renderConfigListToContainer(this.#cardContainer, filteredConfigs, { swapTitleAndFooter: true });
-    }
-    
-    #renderEmptyState() {
-        const { services, uiComponents } = this.#context;
-        const emptyStateDiv = document.createElement('div');
-        emptyStateDiv.className = 'dashboard-empty-state';
-
-        const message = document.createElement('p');
-        message.textContent = services.translate('dashboardEmptyMessage');
-        
-        const button = document.createElement('button');
-        button.className = 'btn btn-primary';
-        uiComponents.setIcon(button, 'UI_TUNE');
-        button.append(services.translate('dashboardEmptyButton'));
-        button.addEventListener('click', () => {
-            this.toggleDashboard(false);
-            this.#context.uiController?.sidebarManager.toggleConfigSidebar(true);
-        });
-
-        emptyStateDiv.append(message, button);
-        this.#cardContainer.appendChild(emptyStateDiv);
     }
     
     async #manageStreamForDashboard(shouldBeActive) {
@@ -261,7 +163,7 @@ export class DashboardManager {
             this.#streamWasActiveBeforeDashboard = cameraService.isStreamActive();
     
             if (!this.#streamWasActiveBeforeDashboard) {
-                let selectedSource = uiController._cameraSourceManager.getSelectedCameraSource();
+                let selectedSource = uiController.cameraManager.getCameraSourceManager().getSelectedCameraSource();
                 if (!selectedSource || selectedSource.startsWith('rtsp:')) {
                     uiController.modalManager.toggleCameraSelectModal(true);
                     return;
@@ -293,14 +195,22 @@ export class DashboardManager {
         await this.#manageStreamForDashboard(this.#isActive);
         
         if (this.#isActive) {
+            pubsub.publish(GESTURE_EVENTS.REQUEST_PROCESSING_OVERRIDE, { 
+                hand: true, 
+                pose: false, 
+                numHands: 1,
+                builtIn: true, // Force built-in gestures ON for pointer
+                custom: true,  // Force custom hand gestures ON for pointer
+            });
             pubsub.publish(GESTURE_EVENTS.SUPPRESS_ACTIONS);
-            this.#renderActionCards();
+            this.#cardRenderer.render();
         } else {
+            pubsub.publish(GESTURE_EVENTS.CLEAR_PROCESSING_OVERRIDE);
             pubsub.publish(GESTURE_EVENTS.RESUME_ACTIONS);
         }
 
         this.#rootElement.classList.toggle('visible', this.#isActive);
-        this.#interactionManager.setEnabled(this.#isActive);
+        this.interactionManager.setEnabled(this.#isActive);
         
         pubsub.publish('DASHBOARD_MODE_CHANGED', this.#isActive);
     }
@@ -308,11 +218,15 @@ export class DashboardManager {
     destroy() {
         const { GESTURE_EVENTS } = this.#context.shared.constants;
         if (this.#unsubscribeStore) this.#unsubscribeStore();
-        document.removeEventListener('click', this.#handleClickOutsideSizeDropdown.bind(this));
+        
+        this.#context.services.pubsub.publish(GESTURE_EVENTS.CLEAR_PROCESSING_OVERRIDE);
         this.#context.services.pubsub.publish(GESTURE_EVENTS.RESUME_ACTIONS);
+        
         this.toggleDashboard(false).catch(e => console.error(e));
-        this.#interactionManager.destroy();
+        this.interactionManager.destroy();
         this.#cameraSelector?.destroy();
+        this.#pointerGestureSelector?.destroy();
+        this.#toolbar?.destroy();
         this.#rootElement.remove();
         document.body.classList.remove('dashboard-active');
     }

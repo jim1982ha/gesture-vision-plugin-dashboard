@@ -3,6 +3,7 @@ import { DashboardManager } from './dashboard-manager.js';
 
 let dashboardManagerInstance = null;
 let unsubscribeStore = null;
+let handleDashboardButtonClick = null; // To hold the event handler for proper removal
 
 const dashboardPlugin = {
   async init(context) {
@@ -20,13 +21,12 @@ const dashboardPlugin = {
     const textSpan = document.createElement('span');
     textSpan.className = 'dashboard-button-text';
 
-    // Create a dedicated function to apply translations
     const updateButtonTranslations = () => {
       dashboardToggleButton.title = translate("dashboardMode");
       textSpan.textContent = translate("dashboardMode");
     };
 
-    updateButtonTranslations(); // Set initial text
+    updateButtonTranslations();
 
     dashboardToggleButton.appendChild(iconSpan);
     dashboardToggleButton.appendChild(textSpan);
@@ -34,17 +34,24 @@ const dashboardPlugin = {
     dashboardManagerInstance = new DashboardManager(context);
     dashboardManagerInstance.initialize();
 
-    dashboardToggleButton.addEventListener('click', () => {
+    // FIX: Use event delegation to handle clicks on both original and cloned buttons.
+    // The listener is attached to the body and checks if the click came from our button.
+    handleDashboardButtonClick = (event) => {
+      if (event.target.closest('#dashboard-mode-toggle-btn')) {
         dashboardManagerInstance.toggleDashboard();
-    });
+      }
+    };
+    document.body.addEventListener('click', handleDashboardButtonClick);
     
     pluginUIService.registerContribution('header-controls', dashboardToggleButton, manifest.id);
     
     context.services.pubsub.subscribe('DASHBOARD_MODE_CHANGED', (isActive) => {
-        dashboardToggleButton.classList.toggle('active', isActive);
+        // This needs to update both buttons, so we query for all matches.
+        document.querySelectorAll('#dashboard-mode-toggle-btn').forEach(btn => {
+            btn.classList.toggle('active', isActive);
+        });
     });
 
-    // Subscribe to the app store for language changes
     unsubscribeStore = appStore.subscribe((state, prevState) => {
       if (state.languagePreference !== prevState.languagePreference) {
         updateButtonTranslations();
@@ -57,13 +64,19 @@ const dashboardPlugin = {
       dashboardManagerInstance.destroy();
       dashboardManagerInstance = null;
     }
-    const toggleButton = document.getElementById('dashboard-mode-toggle-btn');
-    if (toggleButton) toggleButton.remove();
+    
+    // Cleanup both original and cloned buttons
+    document.querySelectorAll('#dashboard-mode-toggle-btn').forEach(btn => btn.remove());
 
-    // Unsubscribe from the store to prevent memory leaks
     if (unsubscribeStore) {
       unsubscribeStore();
       unsubscribeStore = null;
+    }
+    
+    // FIX: Remove the global event listener to prevent memory leaks.
+    if (handleDashboardButtonClick) {
+      document.body.removeEventListener('click', handleDashboardButtonClick);
+      handleDashboardButtonClick = null;
     }
   }
 };

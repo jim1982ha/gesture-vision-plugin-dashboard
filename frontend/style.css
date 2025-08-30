@@ -76,24 +76,28 @@ body.dashboard-active #desktopConfigListTitle {
 #dashboard-toolbar-buttons { display: flex; align-items: center; gap: var(--space-sm); flex-shrink: 0; }
 
 
-#dashboard-camera-selector-container {
+#dashboard-camera-selector-container,
+#dashboard-pointer-gesture-selector-container {
     position: relative;
 }
 
-.dashboard-camera-trigger {
+.dashboard-camera-trigger,
+.dashboard-pointer-gesture-trigger {
     display: flex;
     align-items: center;
     gap: var(--space-xs);
     max-width: 250px;
 }
 
-.dashboard-camera-trigger .camera-name {
+.dashboard-camera-trigger .camera-name,
+.dashboard-pointer-gesture-trigger .gesture-name {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-.dashboard-camera-panel {
+.dashboard-camera-panel,
+.dashboard-pointer-gesture-panel {
     position: absolute;
     top: calc(100% + 4px);
     left: 0;
@@ -111,7 +115,8 @@ body.dashboard-active #desktopConfigListTitle {
     padding: var(--space-xs);
 }
 
-.dashboard-camera-panel .btn {
+.dashboard-camera-panel .btn,
+.dashboard-pointer-gesture-panel .btn {
     justify-content: flex-start;
 }
 
@@ -190,7 +195,8 @@ body.dashboard-active #desktopConfigListTitle {
 @media (max-width: 768px) {
     .dashboard-title { display: none; }
     
-    .dashboard-camera-trigger {
+    .dashboard-camera-trigger,
+    .dashboard-pointer-gesture-trigger {
         width: var(--button-icon-size);
         height: var(--button-icon-size);
         min-width: var(--button-icon-size);
@@ -198,7 +204,9 @@ body.dashboard-active #desktopConfigListTitle {
         justify-content: center;
     }
     .dashboard-camera-trigger .camera-name,
-    .dashboard-camera-trigger .dropdown-arrow {
+    .dashboard-camera-trigger .dropdown-arrow,
+    .dashboard-pointer-gesture-trigger .gesture-name,
+    .dashboard-pointer-gesture-trigger .dropdown-arrow {
         display: none;
     }
 
