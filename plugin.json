@@ -13,6 +13,5 @@
     "providesActions": false,
     "providesUIContribution": true
   },
-  "frontendEntry": "frontend/index.js",
-  "frontendStyle": "frontend/style.css"
+  "frontendEntry": "frontend/index.js"
 }

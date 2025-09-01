@@ -46,7 +46,6 @@ export class DashboardManager {
         this.interactionManager.initialize();
         this.#toolbar.initialize();
         
-        // FIX: Add the missing setIcon call for the close button.
         const closeBtn = this.#toolbarElement.querySelector('#dashboard-close-btn');
         if (closeBtn) {
             this.getContext().uiComponents.setIcon(closeBtn, 'UI_CLOSE');
@@ -105,29 +104,28 @@ export class DashboardManager {
     #createUI() {
         this.#rootElement = document.createElement('div');
         this.#rootElement.id = 'dashboard-plugin-root';
-
+        this.#rootElement.className = 'fixed inset-0 z-50 bg-background/70 backdrop-blur-sm flex items-center justify-center invisible opacity-0 transition-opacity duration-300';
+        
         this.#contentWrapperElement = document.createElement('div');
-        this.#contentWrapperElement.className = 'dashboard-content-wrapper';
+        this.#contentWrapperElement.className = 'w-[90vw] h-[85vh] max-w-[1400px] max-h-[900px] bg-surface border border-border rounded-lg shadow-2xl flex flex-col overflow-hidden scale-95 opacity-0 transition-transform transition-opacity duration-300 ease-out';
         
         this.#toolbarElement = document.createElement('div');
-        this.#toolbarElement.className = 'dashboard-toolbar';
+        this.#toolbarElement.className = 'flex-shrink-0 p-2 flex items-center justify-between gap-2 border-b border-border';
         
         this.#toolbarElement.innerHTML = `
-            <div class="dashboard-header-left">
-                <div id="dashboard-camera-selector-container"></div>
-                <div id="dashboard-pointer-gesture-selector-container"></div>
+            <div class="flex-1 flex items-center gap-2 min-w-0">
+                <div id="dashboard-camera-selector-container" class="relative"></div>
+                <div id="dashboard-pointer-gesture-selector-container" class="relative"></div>
             </div>
-            <h3 class="dashboard-title"></h3>
-            <div class="dashboard-header-right">
-                <div id="dashboard-toolbar-buttons"></div>
-                <button id="dashboard-close-btn" class="btn btn-icon header-close-btn">
-                    <span class="mdi"></span>
-                </button>
+            <h3 class="dashboard-title text-lg font-semibold text-text-primary hidden desktop:block"></h3>
+            <div class="flex-1 flex items-center justify-end gap-2 min-w-0">
+                <div id="dashboard-toolbar-buttons" class="flex items-center gap-2"></div>
+                <button id="dashboard-close-btn" class="btn btn-icon"></button>
             </div>
         `;
         
         this.#cardContainer = document.createElement('div');
-        this.#cardContainer.className = 'config-list dashboard-card-container';
+        this.#cardContainer.className = 'dashboard-card-container overflow-y-auto p-4 grid gap-3 content-start';
         
         this.#contentWrapperElement.append(this.#toolbarElement, this.#cardContainer);
         this.#rootElement.appendChild(this.#contentWrapperElement);
@@ -175,7 +173,7 @@ export class DashboardManager {
                 }
             }
         } else {
-            if (!this.#streamWasActiveBeforeDashboard) {
+            if (!this.#streamWasActiveBeforeDashboard && cameraService.isStreamActive()) {
                 await cameraService.stopStream();
             }
             this.#streamWasActiveBeforeDashboard = false;
@@ -199,17 +197,28 @@ export class DashboardManager {
                 hand: true, 
                 pose: false, 
                 numHands: 1,
-                builtIn: true, // Force built-in gestures ON for pointer
-                custom: true,  // Force custom hand gestures ON for pointer
+                builtIn: true, 
+                custom: true,
             });
             pubsub.publish(GESTURE_EVENTS.SUPPRESS_ACTIONS);
             this.#cardRenderer.render();
+            // FIX: Re-add the explicit update call for the camera selector.
+            this.#cameraSelector.update();
         } else {
             pubsub.publish(GESTURE_EVENTS.CLEAR_PROCESSING_OVERRIDE);
             pubsub.publish(GESTURE_EVENTS.RESUME_ACTIONS);
         }
 
         this.#rootElement.classList.toggle('visible', this.#isActive);
+        this.#rootElement.classList.toggle('invisible', !this.#isActive);
+        this.#rootElement.classList.toggle('opacity-100', this.#isActive);
+        this.#rootElement.classList.toggle('opacity-0', !this.#isActive);
+
+        this.#contentWrapperElement.classList.toggle('scale-100', this.#isActive);
+        this.#contentWrapperElement.classList.toggle('opacity-100', this.#isActive);
+        this.#contentWrapperElement.classList.toggle('scale-95', !this.#isActive);
+        this.#contentWrapperElement.classList.toggle('opacity-0', !this.#isActive);
+        
         this.interactionManager.setEnabled(this.#isActive);
         
         pubsub.publish('DASHBOARD_MODE_CHANGED', this.#isActive);

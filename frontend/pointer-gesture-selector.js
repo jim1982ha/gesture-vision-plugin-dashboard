@@ -20,16 +20,20 @@ export class PointerGestureSelector {
 
     #createUI() {
         this.#container.innerHTML = `
-            <button class="btn btn-secondary dashboard-pointer-gesture-trigger" aria-haspopup="true" aria-expanded="false">
-                <span class="material-icons">ads_click</span>
-                <span class="gesture-name"></span>
-                <span class="material-icons dropdown-arrow">arrow_drop_down</span>
+            <button class="btn btn-secondary px-2 desktop:px-4" aria-haspopup="true" aria-expanded="false">
+                <span class="material-icons"></span>
+                <span class="gesture-name truncate hidden desktop:inline"></span>
+                <span class="material-icons dropdown-arrow"></span>
             </button>
-            <div class="dashboard-pointer-gesture-panel hidden" role="menu"></div>
+            <div class="header-dropdown-panel" role="menu"></div>
         `;
-        this.#triggerButton = this.#container.querySelector('.dashboard-pointer-gesture-trigger');
+        const { setIcon } = this.#context.uiComponents;
+        setIcon(this.#container.querySelector('.material-icons:not(.dropdown-arrow)'), 'ads_click');
+        setIcon(this.#container.querySelector('.dropdown-arrow'), 'UI_ARROW_DROP_DOWN');
+
+        this.#triggerButton = this.#container.querySelector('button');
         this.#gestureNameSpan = this.#container.querySelector('.gesture-name');
-        this.#dropdownPanel = this.#container.querySelector('.dashboard-pointer-gesture-panel');
+        this.#dropdownPanel = this.#container.querySelector('.header-dropdown-panel');
     }
 
     #attachEventListeners() {
@@ -42,7 +46,6 @@ export class PointerGestureSelector {
         document.addEventListener('click', this.#handleClickOutside.bind(this));
     }
     
-    // Public method to be called by DashboardManager when language changes
     applyTranslations() {
         this.update();
     }
@@ -54,8 +57,6 @@ export class PointerGestureSelector {
         
         const state = coreStateManager.getState();
         const availableGestures = [];
-        // FIX: When dashboard is active, it overrides global settings. The dropdown
-        // should reflect this by showing all hand gestures regardless of the global state.
         const isDashboardActive = this.#dashboardManager.isActive();
 
         if (isDashboardActive || state.enableBuiltInHandGestures) {
@@ -70,16 +71,17 @@ export class PointerGestureSelector {
 
         const activeGesture = this.#dashboardManager.getPointerGestureName();
         const activeGestureFormatted = formatGestureNameForDisplay(activeGesture);
-        this.#gestureNameSpan.textContent = services.translate(activeGestureFormatted, { defaultValue: activeGestureFormatted });
+        const translatedLabel = services.translate(activeGestureFormatted, { defaultValue: activeGestureFormatted });
+        this.#gestureNameSpan.textContent = translatedLabel;
+        this.#triggerButton.title = translatedLabel; // Add tooltip for mobile
 
         this.#dropdownPanel.innerHTML = '';
-        // Create a unique set of gestures to avoid duplicates if both global and override are enabled.
         const uniqueGestures = [...new Set(availableGestures)];
 
         uniqueGestures.forEach(name => {
             if (name !== activeGesture) {
                 const item = document.createElement('button');
-                item.className = 'btn btn-secondary';
+                item.className = 'btn btn-secondary w-full justify-start';
                 const formattedName = formatGestureNameForDisplay(name);
                 item.textContent = services.translate(formattedName, { defaultValue: formattedName });
                 item.dataset.gestureName = name;
@@ -97,7 +99,6 @@ export class PointerGestureSelector {
     #toggleDropdown() {
         this.#isOpen = !this.#isOpen;
         this.#triggerButton.setAttribute('aria-expanded', this.#isOpen);
-        this.#dropdownPanel.classList.toggle('hidden', !this.#isOpen);
         this.#dropdownPanel.classList.toggle('visible', this.#isOpen);
     }
     
@@ -105,7 +106,6 @@ export class PointerGestureSelector {
         if (!this.#isOpen) return;
         this.#isOpen = false;
         this.#triggerButton.setAttribute('aria-expanded', 'false');
-        this.#dropdownPanel.classList.add('hidden');
         this.#dropdownPanel.classList.remove('visible');
     }
 

@@ -36,6 +36,12 @@ export class CardRenderer {
         this.#dashboardManager = dashboardManager;
         this.#context = this.#dashboardManager.getContext();
         this.#cardContainer.addEventListener('click', this.#handleCardClick);
+
+        // Add card size grid classes
+        this.#cardContainer.classList.add(
+            'grid-cols-[repeat(auto-fill,minmax(280px,1fr))]',
+            'desktop:grid-cols-[repeat(auto-fill,minmax(280px,1fr))]'
+        );
     }
 
     #handleCardClick = (event) => {
@@ -83,7 +89,7 @@ export class CardRenderer {
                 title: cardTitle,
                 detailsHtml: detailsHtml,
                 footerHtml: `<div class="card-footer"><span>${footerText}</span></div>`,
-                itemClasses: 'config-item',
+                itemClasses: 'config-item min-h-[150px]',
                 datasetAttributes: { gestureName: name },
                 titleAttribute: services.translate('editTooltip', { item: name }),
                 ariaLabel: services.translate('editTooltip', { item: name }),
@@ -95,9 +101,10 @@ export class CardRenderer {
     #renderEmptyState() {
         const { services, uiComponents } = this.#context;
         const emptyStateDiv = document.createElement('div');
-        emptyStateDiv.className = 'dashboard-empty-state';
+        emptyStateDiv.className = 'col-span-full flex flex-col items-center justify-center text-center gap-4 p-8 text-text-secondary dark:text-dark-text-secondary';
 
         const message = document.createElement('p');
+        message.className = 'text-base max-w-sm';
         message.textContent = services.translate('dashboardEmptyMessage');
         
         const button = document.createElement('button');

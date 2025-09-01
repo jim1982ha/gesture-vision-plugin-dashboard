@@ -20,8 +20,8 @@ export class InteractionManager {
     #hoveredCardName = null;
     #dwellTimeout = null;
     #dwellInterval = null;
-    #isCooldownActive = false;
-
+    // FIX: Removed the unused #isCooldownActive property
+    
     constructor(dashboardManager) {
         this.#dashboardManager = dashboardManager;
     }
@@ -34,11 +34,9 @@ export class InteractionManager {
         
         if (this.#unsubscribePubsub) this.#unsubscribePubsub();
 
+        // FIX: Remove the subscription that sets the unused property
         const subscriptions = [
-            pubsub.subscribe(GESTURE_EVENTS.RENDER_OUTPUT, this.#handleLandmarks.bind(this)),
-            pubsub.subscribe(GESTURE_EVENTS.UPDATE_PROGRESS, (data) => {
-                this.#isCooldownActive = (data?.cooldownPercent ?? 0) > 0;
-            })
+            pubsub.subscribe(GESTURE_EVENTS.RENDER_OUTPUT, this.#handleLandmarks.bind(this))
         ];
         
         this.#unsubscribePubsub = () => subscriptions.forEach(unsub => unsub());
@@ -52,6 +50,7 @@ export class InteractionManager {
         if (this.#cursorElement) return;
         this.#cursorElement = document.createElement('div');
         this.#cursorElement.id = 'dashboard-cursor';
+        // Tailwind component class is applied from index.css
         document.body.appendChild(this.#cursorElement);
     }
     
@@ -79,17 +78,15 @@ export class InteractionManager {
     }
 
     #handleLandmarks(renderData) {
-        if (this.#isCooldownActive) {
-            this.#unhoverCard();
-            return;
-        }
-    
         if (!this.#isEnabled || !this.#cursorElement) {
             this.#cursorElement?.classList.remove('visible');
             this.#unhoverCard();
             this.#isCursorInitialized = false;
             return;
         }
+        
+        const timerManager = this.#context.gesture?.getStateLogic()?.getTimerManager();
+        const isCooldown = timerManager?.isCooldownActive() ?? false;
         
         const { normalizeNameForMtx } = this.#context.shared.utils;
         const pointerGestureName = this.#dashboardManager.getPointerGestureName();
@@ -104,17 +101,15 @@ export class InteractionManager {
     
         if (isPointerGestureActive && indexFingertip) {
             this.#cursorElement.classList.add('visible');
+            this.#cursorElement.classList.toggle('cooldown', isCooldown);
             
-            // MODIFIED: Use the entire content wrapper as the interaction area.
             const interactionArea = this.#dashboardManager.getContentWrapperElement();
             if (!interactionArea) return;
             const containerRect = interactionArea.getBoundingClientRect();
             
-            // Apply sensitivity to amplify hand movements relative to the video center.
             const scaledX = (indexFingertip.x - 0.5) * GESTURE_SENSITIVITY + 0.5;
             const scaledY = (indexFingertip.y - 0.5) * GESTURE_SENSITIVITY + 0.5;
 
-            // Clamp the coordinates to the [0.0, 1.0] range to keep the pointer within bounds.
             const normalizedX = Math.max(0, Math.min(1, scaledX));
             const normalizedY = Math.max(0, Math.min(1, scaledY));
 
@@ -137,7 +132,12 @@ export class InteractionManager {
             this.#cursorElement.style.left = `${this.#cursorX}px`;
             this.#cursorElement.style.top = `${this.#cursorY}px`;
     
-            this.#checkCardCollision(this.#cursorX, this.#cursorY, DWELL_TIME_MS);
+            if (!isCooldown) {
+                this.#checkCardCollision(this.#cursorX, this.#cursorY, DWELL_TIME_MS);
+            } else {
+                this.#unhoverCard();
+            }
+
         } else {
             this.#isCursorInitialized = false;
             this.#cursorElement.classList.remove('visible');
@@ -215,6 +215,9 @@ export class InteractionManager {
 
     #triggerAction() {
         if (!this.#hoveredCardName) return;
+
+        const timerManager = this.#context.gesture?.getStateLogic()?.getTimerManager();
+        timerManager?.startGlobalCooldown();
 
         const { webSocketService, services, coreStateManager } = this.#context;
         const gestureConfig = coreStateManager.getState().gestureConfigs.find(c => (c.gesture || c.pose) === this.#hoveredCardName);

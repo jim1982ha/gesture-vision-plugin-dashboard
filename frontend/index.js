@@ -13,29 +13,38 @@ const dashboardPlugin = {
 
     const dashboardToggleButton = document.createElement('button');
     dashboardToggleButton.id = 'dashboard-mode-toggle-btn';
-    dashboardToggleButton.className = 'btn btn-secondary';
+    dashboardToggleButton.className = 'btn btn-secondary px-2 desktop:px-4';
     
     const iconSpan = document.createElement('span');
     setIcon(iconSpan, manifest.icon.name);
 
     const textSpan = document.createElement('span');
-    textSpan.className = 'dashboard-button-text';
+    textSpan.className = 'dashboard-button-text hidden desktop:inline';
 
-    const updateButtonTranslations = () => {
-      dashboardToggleButton.title = translate("dashboardMode");
-      textSpan.textContent = translate("dashboardMode");
-    };
-
-    updateButtonTranslations();
-
+    // FIX: Set initial text content and title directly on the element before it's registered.
+    // This ensures the clone inserted into the DOM is correct from the start.
+    dashboardToggleButton.title = translate("dashboardMode");
+    textSpan.textContent = translate("dashboardMode");
+    
     dashboardToggleButton.appendChild(iconSpan);
     dashboardToggleButton.appendChild(textSpan);
+
+    // This function is now only for updates AFTER the initial render (e.g., language change).
+    const updateButtonTranslations = () => {
+      const buttonInDom = document.getElementById('dashboard-mode-toggle-btn');
+      if (!buttonInDom) return;
+      
+      const textSpanInDom = buttonInDom.querySelector('.dashboard-button-text');
+
+      buttonInDom.title = translate("dashboardMode");
+      if (textSpanInDom) {
+        textSpanInDom.textContent = translate("dashboardMode");
+      }
+    };
 
     dashboardManagerInstance = new DashboardManager(context);
     dashboardManagerInstance.initialize();
 
-    // FIX: Use event delegation to handle clicks on both original and cloned buttons.
-    // The listener is attached to the body and checks if the click came from our button.
     handleDashboardButtonClick = (event) => {
       if (event.target.closest('#dashboard-mode-toggle-btn')) {
         dashboardManagerInstance.toggleDashboard();
@@ -46,7 +55,6 @@ const dashboardPlugin = {
     pluginUIService.registerContribution('header-controls', dashboardToggleButton, manifest.id);
     
     context.services.pubsub.subscribe('DASHBOARD_MODE_CHANGED', (isActive) => {
-        // This needs to update both buttons, so we query for all matches.
         document.querySelectorAll('#dashboard-mode-toggle-btn').forEach(btn => {
             btn.classList.toggle('active', isActive);
         });
@@ -54,6 +62,7 @@ const dashboardPlugin = {
 
     unsubscribeStore = appStore.subscribe((state, prevState) => {
       if (state.languagePreference !== prevState.languagePreference) {
+        // This correctly updates the button that is already in the DOM.
         updateButtonTranslations();
       }
     });
@@ -65,15 +74,14 @@ const dashboardPlugin = {
       dashboardManagerInstance = null;
     }
     
-    // Cleanup both original and cloned buttons
-    document.querySelectorAll('#dashboard-mode-toggle-btn').forEach(btn => btn.remove());
+    // REMOVED: Redundant DOM cleanup is now handled by UIController
+    // document.querySelectorAll('#dashboard-mode-toggle-btn').forEach(btn => btn.remove());
 
     if (unsubscribeStore) {
       unsubscribeStore();
       unsubscribeStore = null;
     }
     
-    // FIX: Remove the global event listener to prevent memory leaks.
     if (handleDashboardButtonClick) {
       document.body.removeEventListener('click', handleDashboardButtonClick);
       handleDashboardButtonClick = null;

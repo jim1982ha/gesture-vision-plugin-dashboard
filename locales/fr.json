@@ -1,11 +1,14 @@
 {
     "pluginDashboardName": "Tableau de Bord",
     "pluginDashboardDescription": "Fournit une superposition d'interface interactive avec des widgets pour contrôler les actions.",
-    "dashboardMode": "Dashboard",
+    "dashboardMode": "Tableau de Bord",
     "widgetSizeLabel": "Taille Carte",
     "widgetSizeSmall": "P",
     "widgetSizeMedium": "M",
     "widgetSizeLarge": "G",
+    "widgetSizeSmallTooltip": "Petit",
+    "widgetSizeMediumTooltip": "Moyen",
+    "widgetSizeLargeTooltip": "Grand",
     "mirrorCursor": "Miroir Curseur",
     "dashboardEmptyMessage": "Aucune action configurée. Ajoutez des gestes dans le panneau 'Paramètres des Gestes' pour les voir ici.",
     "dashboardEmptyButton": "Configurer les Gestes"

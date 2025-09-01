@@ -6,6 +6,9 @@
     "widgetSizeSmall": "S",
     "widgetSizeMedium": "M",
     "widgetSizeLarge": "L",
+    "widgetSizeSmallTooltip": "Small",
+    "widgetSizeMediumTooltip": "Medium",
+    "widgetSizeLargeTooltip": "Large",
     "mirrorCursor": "Mirror Cursor",
     "dashboardEmptyMessage": "No actions configured. Add gestures in the 'Gesture Settings' panel to see them here.",
     "dashboardEmptyButton": "Configure Gestures"

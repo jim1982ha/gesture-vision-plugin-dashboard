@@ -6,6 +6,9 @@
     "widgetSizeSmall": "小",
     "widgetSizeMedium": "中",
     "widgetSizeLarge": "大",
+    "widgetSizeSmallTooltip": "小号",
+    "widgetSizeMediumTooltip": "中号",
+    "widgetSizeLargeTooltip": "大号",
     "mirrorCursor": "镜像光标",
     "dashboardEmptyMessage": "未配置任何动作。请在“手势设置”面板中添加手势，即可在此处看到它们。",
     "dashboardEmptyButton": "配置手势"
