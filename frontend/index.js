@@ -1,6 +1,11 @@
 /* FILE: extensions/plugins/gesture-vision-plugin-dashboard/frontend/index.js */
 import { DashboardManager } from './dashboard-manager.js';
 
+// Ensure the global registry exists
+if (!window.GestureVisionPlugins) {
+  window.GestureVisionPlugins = {};
+}
+
 let dashboardManagerInstance = null;
 let unsubscribeStore = null;
 let handleDashboardButtonClick = null; // To hold the event handler for proper removal
@@ -21,15 +26,12 @@ const dashboardPlugin = {
     const textSpan = document.createElement('span');
     textSpan.className = 'dashboard-button-text hidden desktop:inline';
 
-    // FIX: Set initial text content and title directly on the element before it's registered.
-    // This ensures the clone inserted into the DOM is correct from the start.
     dashboardToggleButton.title = translate("dashboardMode");
     textSpan.textContent = translate("dashboardMode");
     
     dashboardToggleButton.appendChild(iconSpan);
     dashboardToggleButton.appendChild(textSpan);
 
-    // This function is now only for updates AFTER the initial render (e.g., language change).
     const updateButtonTranslations = () => {
       const buttonInDom = document.getElementById('dashboard-mode-toggle-btn');
       if (!buttonInDom) return;
@@ -62,7 +64,6 @@ const dashboardPlugin = {
 
     unsubscribeStore = appStore.subscribe((state, prevState) => {
       if (state.languagePreference !== prevState.languagePreference) {
-        // This correctly updates the button that is already in the DOM.
         updateButtonTranslations();
       }
     });
@@ -74,9 +75,6 @@ const dashboardPlugin = {
       dashboardManagerInstance = null;
     }
     
-    // REMOVED: Redundant DOM cleanup is now handled by UIController
-    // document.querySelectorAll('#dashboard-mode-toggle-btn').forEach(btn => btn.remove());
-
     if (unsubscribeStore) {
       unsubscribeStore();
       unsubscribeStore = null;
@@ -88,5 +86,8 @@ const dashboardPlugin = {
     }
   }
 };
+
+// Register the module with the global registry
+window.GestureVisionPlugins['gesture-vision-plugin-dashboard'] = dashboardPlugin;
 
 export default dashboardPlugin;
