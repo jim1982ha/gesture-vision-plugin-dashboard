@@ -54,7 +54,8 @@ const dashboardPlugin = {
     };
     document.body.addEventListener('click', handleDashboardButtonClick);
     
-    pluginUIService.registerContribution('header-controls', dashboardToggleButton, manifest.id);
+    // FIX: Corrected the slot ID to match the one rendered in the header partial.
+    pluginUIService.registerContribution('header-plugin-contribution-slot', dashboardToggleButton, manifest.id);
     
     context.services.pubsub.subscribe('DASHBOARD_MODE_CHANGED', (isActive) => {
         document.querySelectorAll('#dashboard-mode-toggle-btn').forEach(btn => {
