@@ -7,6 +7,7 @@ export class PointerGestureSelector {
     #gestureNameSpan;
     #dropdownPanel;
     #isOpen = false;
+    #unsubscribePubsub = [];
 
     constructor(container, dashboardManager) {
         this.#container = container;
@@ -40,7 +41,8 @@ export class PointerGestureSelector {
         const { pubsub } = this.#context.services;
         const { GESTURE_EVENTS } = this.#context.shared.constants;
 
-        pubsub.subscribe(GESTURE_EVENTS.MODEL_LOADED, this.update.bind(this));
+        const sub = pubsub.subscribe(GESTURE_EVENTS.MODEL_LOADED, this.update.bind(this));
+        this.#unsubscribePubsub.push(sub);
         
         this.#triggerButton.addEventListener('click', this.#toggleDropdown.bind(this));
         document.addEventListener('click', this.#handleClickOutside.bind(this));
@@ -117,5 +119,7 @@ export class PointerGestureSelector {
 
     destroy() {
         document.removeEventListener('click', this.#handleClickOutside.bind(this));
+        this.#unsubscribePubsub.forEach(unsub => unsub());
+        this.#unsubscribePubsub = [];
     }
 }

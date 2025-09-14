@@ -27,6 +27,9 @@ export class DashboardManager {
     #streamWasActiveBeforeDashboard = false;
     #pointerGestureName = 'POINTING_UP';
 
+    #boundEscapeHandler = this.toggleDashboard.bind(this, false);
+    #unsubscribeEscape;
+
     constructor(context) {
         this.#context = context;
         this.#createUI();
@@ -182,7 +185,8 @@ export class DashboardManager {
 
     async toggleDashboard(forceState) {
         const { GESTURE_EVENTS } = this.#context.shared.constants;
-        const { pubsub } = this.#context.services;
+        const { pubsub, uiComponents } = this.#context.services;
+        const { modalStack } = uiComponents;
         
         const shouldBeActive = forceState !== undefined ? forceState : !this.#isActive;
         if (this.#isActive === shouldBeActive) return;
@@ -193,6 +197,8 @@ export class DashboardManager {
         await this.#manageStreamForDashboard(this.#isActive);
         
         if (this.#isActive) {
+            modalStack.push('dashboard');
+            this.#unsubscribeEscape = pubsub.subscribe('escape-for-dashboard', this.#boundEscapeHandler);
             pubsub.publish(GESTURE_EVENTS.REQUEST_PROCESSING_OVERRIDE, { 
                 hand: true, 
                 pose: false, 
@@ -203,6 +209,8 @@ export class DashboardManager {
             pubsub.publish(GESTURE_EVENTS.SUPPRESS_ACTIONS);
             this.#cardRenderer.render();
         } else {
+            modalStack.remove('dashboard');
+            if (this.#unsubscribeEscape) this.#unsubscribeEscape();
             pubsub.publish(GESTURE_EVENTS.CLEAR_PROCESSING_OVERRIDE);
             pubsub.publish(GESTURE_EVENTS.RESUME_ACTIONS);
         }
@@ -224,7 +232,9 @@ export class DashboardManager {
 
     destroy() {
         const { GESTURE_EVENTS } = this.#context.shared.constants;
+        const { modalStack } = this.#context.uiComponents;
         if (this.#unsubscribeStore) this.#unsubscribeStore();
+        if (this.#unsubscribeEscape) this.#unsubscribeEscape();
         
         this.#context.services.pubsub.publish(GESTURE_EVENTS.CLEAR_PROCESSING_OVERRIDE);
         this.#context.services.pubsub.publish(GESTURE_EVENTS.RESUME_ACTIONS);
@@ -236,6 +246,7 @@ export class DashboardManager {
         this.#toolbar?.destroy();
         this.#rootElement.remove();
         document.body.classList.remove('dashboard-active');
+        modalStack.remove('dashboard');
     }
 
     isActive = () => this.#isActive;
