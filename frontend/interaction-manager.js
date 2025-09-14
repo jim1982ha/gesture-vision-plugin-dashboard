@@ -1,6 +1,5 @@
 /* FILE: extensions/plugins/gesture-vision-plugin-dashboard/frontend/interaction-manager.js */
 const SMOOTHING_FACTOR = 0.3; // Lower is smoother but laggier, higher is more responsive but jittery. 0.3 is a good balance.
-const CURSOR_STORAGE_KEY = 'gesture-vision-dashboard-cursor-mirror';
 
 // Amplifies hand movements. A value of 2.0 means moving your hand across half the
 // video's width will move the cursor across the entire dashboard width.
@@ -12,7 +11,6 @@ export class InteractionManager {
     #cursorElement = null;
     #isEnabled = false;
     #unsubscribePubsub;
-    #isMirrored;
     #cursorX = 0;
     #cursorY = 0;
     #isCursorInitialized = false;
@@ -20,23 +18,21 @@ export class InteractionManager {
     #hoveredCardName = null;
     #dwellTimeout = null;
     #dwellInterval = null;
-    // FIX: Removed the unused #isCooldownActive property
     
     constructor(dashboardManager) {
         this.#dashboardManager = dashboardManager;
     }
 
     initialize() {
-        this.#isMirrored = localStorage.getItem(CURSOR_STORAGE_KEY) === 'true';
-
-        const { GESTURE_EVENTS } = this.#context.shared.constants;
+        const { GESTURE_EVENTS, WEBCAM_EVENTS, UI_EVENTS } = this.#context.shared.constants;
         const { pubsub } = this.#context.services;
         
         if (this.#unsubscribePubsub) this.#unsubscribePubsub();
 
-        // FIX: Remove the subscription that sets the unused property
         const subscriptions = [
-            pubsub.subscribe(GESTURE_EVENTS.RENDER_OUTPUT, this.#handleLandmarks.bind(this))
+            pubsub.subscribe(GESTURE_EVENTS.RENDER_OUTPUT, this.#handleLandmarks.bind(this)),
+            pubsub.subscribe(WEBCAM_EVENTS.STREAM_START, this.updateMirrorButtonState.bind(this)),
+            pubsub.subscribe(UI_EVENTS.REQUEST_BUTTON_STATE_UPDATE, this.updateMirrorButtonState.bind(this)),
         ];
         
         this.#unsubscribePubsub = () => subscriptions.forEach(unsub => unsub());
@@ -50,7 +46,6 @@ export class InteractionManager {
         if (this.#cursorElement) return;
         this.#cursorElement = document.createElement('div');
         this.#cursorElement.id = 'dashboard-cursor';
-        // Tailwind component class is applied from index.css
         document.body.appendChild(this.#cursorElement);
     }
     
@@ -65,6 +60,7 @@ export class InteractionManager {
         this.#isEnabled = enabled;
         if (enabled) {
             this.#createCursor();
+            this.updateMirrorButtonState();
         } else {
             this.#removeCursor();
         }
@@ -113,10 +109,11 @@ export class InteractionManager {
             const normalizedX = Math.max(0, Math.min(1, scaledX));
             const normalizedY = Math.max(0, Math.min(1, scaledY));
 
+            const isMirrored = this.#context.cameraService.getCameraManager().isMirrored();
             let targetX = containerRect.left + normalizedX * containerRect.width;
             const targetY = containerRect.top + normalizedY * containerRect.height;
     
-            if (this.#isMirrored) {
+            if (isMirrored) {
                 targetX = containerRect.left + (1 - normalizedX) * containerRect.width;
             }
     
@@ -264,16 +261,18 @@ export class InteractionManager {
     }
     
     toggleMirroring() {
-        this.#isMirrored = !this.#isMirrored;
-        localStorage.setItem(CURSOR_STORAGE_KEY, this.#isMirrored);
-        this.updateMirrorButtonState();
+        this.#context.services.pubsub.publish(this.#context.shared.constants.UI_EVENTS.REQUEST_MIRROR_TOGGLE);
     }
     
     updateMirrorButtonState() {
+        const camManager = this.#context.cameraService?.getCameraManager();
+        if (!camManager) return;
+        
+        const isMirrored = camManager.isMirrored();
         const buttons = document.querySelectorAll('#dashboard-mirror-cursor-btn, #dashboard-mirror-cursor-btn-mobile');
         buttons.forEach(button => {
             if (button) {
-                button.classList.toggle('active', this.#isMirrored);
+                button.classList.toggle('active', isMirrored);
             }
         });
     }

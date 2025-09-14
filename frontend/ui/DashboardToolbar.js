@@ -65,12 +65,13 @@ export class DashboardToolbar {
     }
     
     applyTranslations() {
-        const { services, manifest } = this.#context;
+        const { services: { translationService }, manifest } = this.#context;
+        const translate = translationService.translate;
         const titleEl = this.#toolbarElement.querySelector('.dashboard-title');
-        if (titleEl) titleEl.textContent = services.translate(manifest.nameKey, { defaultValue: 'Dashboard' });
+        if (titleEl) titleEl.textContent = translate(manifest.nameKey, { defaultValue: 'Dashboard' });
 
         const closeBtn = this.#toolbarElement.querySelector('#dashboard-close-btn');
-        if (closeBtn) closeBtn.setAttribute('aria-label', services.translate('close'));
+        if (closeBtn) closeBtn.setAttribute('aria-label', translate('close'));
     
         const applySizeTranslations = (container) => {
             if (!container) return;
@@ -80,8 +81,8 @@ export class DashboardToolbar {
                 const sizeKey = `widgetSize${size.charAt(0).toUpperCase() + size.slice(1)}`;
                 const tooltipKey = `${sizeKey}Tooltip`;
                 
-                btn.textContent = services.translate(sizeKey);
-                btn.title = services.translate(tooltipKey, { defaultValue: size });
+                btn.textContent = translate(sizeKey);
+                btn.title = translate(tooltipKey, { defaultValue: size });
             });
         };
     
@@ -91,15 +92,15 @@ export class DashboardToolbar {
         const mirrorBtn = document.getElementById('dashboard-mirror-cursor-btn');
         if (mirrorBtn) {
             const textSpan = mirrorBtn.querySelector('.mirror-cursor-text');
-            if (textSpan) textSpan.textContent = services.translate('mirrorCursor');
-            mirrorBtn.title = services.translate('mirrorCursor');
+            if (textSpan) textSpan.textContent = translate('mirrorCursor');
+            mirrorBtn.title = translate('mirrorCursor');
         }
     
         const mobileSizeTrigger = document.getElementById('dashboard-size-trigger-mobile');
-        if (mobileSizeTrigger) mobileSizeTrigger.title = services.translate('widgetSizeLabel');
+        if (mobileSizeTrigger) mobileSizeTrigger.title = translate('widgetSizeLabel');
     
         const mobileMirrorBtn = document.getElementById('dashboard-mirror-cursor-btn-mobile');
-        if (mobileMirrorBtn) mobileMirrorBtn.title = services.translate('mirrorCursor');
+        if (mobileMirrorBtn) mobileMirrorBtn.title = translate('mirrorCursor');
     }
 
     #toggleSizeDropdown(forceState) {

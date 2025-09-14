@@ -11,5 +11,6 @@
     "widgetSizeLargeTooltip": "Grand",
     "mirrorCursor": "Miroir Curseur",
     "dashboardEmptyMessage": "Aucune action configurée. Ajoutez des gestes dans le panneau 'Paramètres des Gestes' pour les voir ici.",
-    "dashboardEmptyButton": "Configurer les Gestes"
+    "dashboardEmptyButton": "Configurer les Gestes",
+    "noStreamActive": "Aucun Flux Actif"
 }

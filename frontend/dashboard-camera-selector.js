@@ -8,6 +8,7 @@ export class DashboardCameraSelector {
     #cameraNameSpan;
     #dropdownPanel;
     #isOpen = false;
+    #unsubscribePubsub = [];
 
     constructor(container, dashboardManager) {
         this.#container = container;
@@ -16,7 +17,7 @@ export class DashboardCameraSelector {
         
         this.#createUI();
         this.#attachEventListeners();
-        this.update(); // Initial render using the now public method
+        this.update();
     }
 
     #createUI() {
@@ -39,28 +40,31 @@ export class DashboardCameraSelector {
 
     #attachEventListeners() {
         const { pubsub } = this.#context.services;
-        const { WEBCAM_EVENTS, CAMERA_SOURCE_EVENTS } = this.#context.shared.constants;
-        
-        // FIX: Call the public `update` method
-        pubsub.subscribe(WEBCAM_EVENTS.STREAM_START, this.update.bind(this));
-        pubsub.subscribe(CAMERA_SOURCE_EVENTS.MAP_UPDATED, this.update.bind(this));
+        const { WEBCAM_EVENTS } = this.#context.shared.constants;
+
+        const subscriptions = [
+            pubsub.subscribe('DASHBOARD_MODE_CHANGED', this.update.bind(this)),
+            pubsub.subscribe(WEBCAM_EVENTS.STREAM_START, this.update.bind(this)),
+            pubsub.subscribe(WEBCAM_EVENTS.STREAM_STOP, this.update.bind(this))
+        ];
+        this.#unsubscribePubsub.push(...subscriptions);
 
         this.#triggerButton.addEventListener('click', this.#toggleDropdown.bind(this));
         document.addEventListener('click', this.#handleClickOutside.bind(this));
     }
 
-    // FIX: Changed from private #update to public update
     update() {
         const { cameraService, uiController } = this.#context;
+        const { translate } = this.#context.services.translationService;
         if (!cameraService || !uiController) return;
 
         const cameraManager = cameraService.getCameraManager();
         const allSources = cameraManager.getCameraSourceManager().getCombinedDeviceMap();
         const activeSourceId = cameraService.isStreamActive() ? cameraManager.getCurrentDeviceId() : null;
         
-        const activeLabel = activeSourceId ? allSources.get(activeSourceId) || 'Unknown Source' : 'No Stream Active';
+        const activeLabel = activeSourceId ? allSources.get(activeSourceId) || 'Unknown Source' : translate('noStreamActive');
         this.#cameraNameSpan.textContent = activeLabel;
-        this.#triggerButton.title = activeLabel; // Add tooltip for mobile
+        this.#triggerButton.title = activeLabel;
 
         this.#dropdownPanel.innerHTML = '';
         allSources.forEach((label, id) => {
@@ -102,5 +106,7 @@ export class DashboardCameraSelector {
 
     destroy() {
         document.removeEventListener('click', this.#handleClickOutside.bind(this));
+        this.#unsubscribePubsub.forEach(unsub => unsub());
+        this.#unsubscribePubsub = [];
     }
 }

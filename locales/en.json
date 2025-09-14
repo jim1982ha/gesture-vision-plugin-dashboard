@@ -11,5 +11,6 @@
     "widgetSizeLargeTooltip": "Large",
     "mirrorCursor": "Mirror Cursor",
     "dashboardEmptyMessage": "No actions configured. Add gestures in the 'Gesture Settings' panel to see them here.",
-    "dashboardEmptyButton": "Configure Gestures"
+    "dashboardEmptyButton": "Configure Gestures",
+    "noStreamActive": "No Stream Active"
 }

@@ -14,7 +14,7 @@ const dashboardPlugin = {
   async init(context) {
     const { pluginUIService, uiComponents, services, manifest, coreStateManager: appStore } = context;
     const { setIcon } = uiComponents;
-    const { translate } = services;
+    const { translate } = services.translationService;
 
     const dashboardToggleButton = document.createElement('button');
     dashboardToggleButton.id = 'dashboard-mode-toggle-btn';

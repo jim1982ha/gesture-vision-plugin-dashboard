@@ -5,8 +5,8 @@ import { PointerGestureSelector } from './pointer-gesture-selector.js';
 import { CardRenderer } from './ui/CardRenderer.js';
 import { DashboardToolbar } from './ui/DashboardToolbar.js';
 
-const CARD_SIZE_STORAGE_KEY = 'gesture-vision-dashboard-card-size';
-const POINTER_GESTURE_STORAGE_KEY = 'gesture-vision-dashboard-pointer-gesture';
+const CARD_SIZE_STORAGE_KEY = 'gv-dashboard-card-size';
+const POINTER_GESTURE_STORAGE_KEY = 'gv-dashboard-pointer-gesture';
 
 export class DashboardManager {
     #context;
@@ -202,8 +202,6 @@ export class DashboardManager {
             });
             pubsub.publish(GESTURE_EVENTS.SUPPRESS_ACTIONS);
             this.#cardRenderer.render();
-            // FIX: Re-add the explicit update call for the camera selector.
-            this.#cameraSelector.update();
         } else {
             pubsub.publish(GESTURE_EVENTS.CLEAR_PROCESSING_OVERRIDE);
             pubsub.publish(GESTURE_EVENTS.RESUME_ACTIONS);

@@ -51,7 +51,7 @@ export class PointerGestureSelector {
     }
 
     update() {
-        const { coreStateManager, services } = this.#context;
+        const { coreStateManager, services: { translationService } } = this.#context;
         const { BUILT_IN_HAND_GESTURES } = this.#context.shared.constants;
         const { formatGestureNameForDisplay } = this.#context.shared.services.actionDisplayUtils;
         
@@ -71,7 +71,7 @@ export class PointerGestureSelector {
 
         const activeGesture = this.#dashboardManager.getPointerGestureName();
         const activeGestureFormatted = formatGestureNameForDisplay(activeGesture);
-        const translatedLabel = services.translate(activeGestureFormatted, { defaultValue: activeGestureFormatted });
+        const translatedLabel = translationService.translate(activeGestureFormatted, { defaultValue: activeGestureFormatted });
         this.#gestureNameSpan.textContent = translatedLabel;
         this.#triggerButton.title = translatedLabel; // Add tooltip for mobile
 
@@ -83,7 +83,7 @@ export class PointerGestureSelector {
                 const item = document.createElement('button');
                 item.className = 'btn btn-secondary w-full justify-start';
                 const formattedName = formatGestureNameForDisplay(name);
-                item.textContent = services.translate(formattedName, { defaultValue: formattedName });
+                item.textContent = translationService.translate(formattedName, { defaultValue: formattedName });
                 item.dataset.gestureName = name;
                 item.addEventListener('click', () => this.#handleGestureSelect(name));
                 this.#dropdownPanel.appendChild(item);

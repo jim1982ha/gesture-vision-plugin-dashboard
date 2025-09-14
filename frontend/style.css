@@ -1,0 +1,86 @@
+/* FILE: extensions/plugins/gesture-vision-plugin-dashboard/frontend/style.css */
+/* This file contains ONLY standard CSS or utility classes already defined in the main Tailwind config. */
+/* It MUST NOT contain @layer, @apply, or theme() directives as it's not processed by the core Tailwind build pipeline. */
+
+.dashboard-card-container.card-size-small {
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+.dashboard-card-container.card-size-medium {
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+.dashboard-card-container.card-size-large {
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+}
+
+.dashboard-card-container .card-item.widget-triggered {
+  transform: scale(0.95);
+  transition: all 150ms;
+  background-color: rgb(var(--color-primary) / 0.2);
+  border-color: rgb(var(--color-primary));
+}
+
+.dashboard-card-container .card-item.hover {
+  border-color: rgb(var(--color-primary));
+  box-shadow: 0 0 0 2px rgb(var(--color-primary)), var(--shadow-lg);
+}
+
+/* --- Dashboard Plugin Cursor for Maximum Visibility --- */
+#dashboard-cursor {
+  --progress: 0;
+  position: fixed;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition-property: all;
+  transition-duration: 200ms;
+  transition-timing-function: ease-out;
+  z-index: 1100; /* Corresponds to z-alert */
+
+  border: 1px solid black;
+  box-shadow: 0 0 0 2px white, 0 2px 4px rgba(0, 0, 0, 0.4);
+
+  background: radial-gradient(
+      closest-side,
+      rgb(var(--color-surface) / 0.7) 75%,
+      transparent 0 99.9%
+    ),
+    conic-gradient(
+      rgb(var(--color-primary)) calc(var(--progress) * 100%),
+      rgb(var(--color-border) / 0.5) 0
+    );
+}
+#dashboard-cursor.high-contrast {
+  box-shadow: 0 0 0 2px white, 0 0 10px rgb(var(--color-primary));
+  background: radial-gradient(
+      closest-side,
+      rgb(var(--color-on-primary)) 75%,
+      transparent 0 99.9%
+    ),
+    conic-gradient(
+      rgb(var(--color-primary)) calc(var(--progress) * 100%),
+      rgb(var(--color-primary) / 0.5) 0
+    );
+}
+#dashboard-cursor.cooldown {
+  opacity: 0.5;
+  border-color: rgb(var(--color-secondary));
+  box-shadow: 0 0 0 2px rgb(var(--color-surface) / 0.5),
+    0 2px 4px rgba(0, 0, 0, 0.2);
+}
+#dashboard-cursor.visible {
+  visibility: visible;
+  opacity: 1;
+}
+#dashboard-cursor.dwelling {
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  50% {
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+}

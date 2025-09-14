@@ -36,12 +36,6 @@ export class CardRenderer {
         this.#dashboardManager = dashboardManager;
         this.#context = this.#dashboardManager.getContext();
         this.#cardContainer.addEventListener('click', this.#handleCardClick);
-
-        // Add card size grid classes
-        this.#cardContainer.classList.add(
-            'grid-cols-[repeat(auto-fill,minmax(280px,1fr))]',
-            'desktop:grid-cols-[repeat(auto-fill,minmax(280px,1fr))]'
-        );
     }
 
     #handleCardClick = (event) => {
@@ -55,7 +49,7 @@ export class CardRenderer {
     };
 
     async render() {
-        const { coreStateManager, services, uiComponents } = this.#context;
+        const { coreStateManager, services: { translationService }, uiComponents } = this.#context;
         const { getGestureDisplayInfo } = this.#context.shared.services.actionDisplayUtils;
         if (!coreStateManager) return;
 
@@ -73,12 +67,12 @@ export class CardRenderer {
         for (const config of filteredConfigs) {
             const name = config.gesture || config.pose;
             const { formattedName, category } = getGestureDisplayInfo(name, state.customGestureMetadataList);
-            const gestureDisplayName = category === 'BUILT_IN_HAND' ? services.translate(formattedName, { defaultValue: formattedName }) : formattedName;
+            const gestureDisplayName = category === 'BUILT_IN_HAND' ? translationService.translate(formattedName, { defaultValue: formattedName }) : formattedName;
 
             const pluginId = config.actionConfig?.pluginId;
             const actionTypeDisplay = pluginId && pluginId !== 'none'
-                ? services.translate(this.#context.pluginUIService.getPluginManifest(pluginId)?.nameKey, { defaultValue: pluginId })
-                : services.translate('actionTypeNone');
+                ? translationService.translate(this.#context.pluginUIService.getPluginManifest(pluginId)?.nameKey, { defaultValue: pluginId })
+                : translationService.translate('actionTypeNone');
 
             const cardTitle = actionTypeDisplay;
             const footerText = gestureDisplayName;
@@ -88,29 +82,29 @@ export class CardRenderer {
                 ...this.#context.shared.services.actionDisplayUtils.getGestureCategoryIconDetails(category),
                 title: cardTitle,
                 detailsHtml: detailsHtml,
-                footerHtml: `<div class="card-footer"><span>${footerText}</span></div>`,
+                footerConfig: { mainText: footerText },
                 itemClasses: 'config-item min-h-[150px]',
                 datasetAttributes: { gestureName: name },
-                titleAttribute: services.translate('editTooltip', { item: name }),
-                ariaLabel: services.translate('editTooltip', { item: name }),
+                titleAttribute: translationService.translate('editTooltip', { item: name }),
+                translate: translationService.translate,
             });
             this.#cardContainer.appendChild(card);
         }
     }
     
     #renderEmptyState() {
-        const { services, uiComponents } = this.#context;
+        const { services: { translationService }, uiComponents } = this.#context;
         const emptyStateDiv = document.createElement('div');
         emptyStateDiv.className = 'col-span-full flex flex-col items-center justify-center text-center gap-4 p-8 text-text-secondary dark:text-dark-text-secondary';
 
         const message = document.createElement('p');
         message.className = 'text-base max-w-sm';
-        message.textContent = services.translate('dashboardEmptyMessage');
+        message.textContent = translationService.translate('dashboardEmptyMessage');
         
         const button = document.createElement('button');
         button.className = 'btn btn-primary';
         uiComponents.setIcon(button, 'UI_TUNE');
-        button.append(services.translate('dashboardEmptyButton'));
+        button.append(translationService.translate('dashboardEmptyButton'));
         button.addEventListener('click', () => {
             this.#dashboardManager.toggleDashboard(false);
             this.#context.uiController?.sidebarManager.toggleConfigSidebar(true);
