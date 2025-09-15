@@ -185,7 +185,8 @@ export class DashboardManager {
 
     async toggleDashboard(forceState) {
         const { GESTURE_EVENTS } = this.#context.shared.constants;
-        const { pubsub, uiComponents } = this.#context.services;
+        const { pubsub } = this.#context.services;
+        const { uiComponents } = this.#context;
         const { modalStack } = uiComponents;
         
         const shouldBeActive = forceState !== undefined ? forceState : !this.#isActive;
