@@ -13,6 +13,6 @@
     "providesActions": false,
     "providesUIContribution": true
   },
-  "frontendEntry": "frontend/index.js",
+  "frontendEntry": "frontend/index.tsx",
   "hasFrontendStyle": true
 }
