@@ -1,5 +1,5 @@
 /* FILE: extensions/plugins/gesture-vision-plugin-dashboard/frontend/Dashboard.tsx */
-import React, { useState, useMemo, useEffect, useRef, useContext } from 'react';
+import { useState, useMemo, useEffect, useRef, useContext } from 'react';
 import { type AppContextType } from '#frontend/types/index.js';
 import { useAppStore } from '#frontend/hooks/useAppStore.js';
 import { type GestureConfig, type PoseConfig, GESTURE_EVENTS, type CustomGestureMetadata, normalizeNameForMtx, type ActionDisplayDetail } from '#shared/index.js';
@@ -137,7 +137,7 @@ export const Dashboard = ({ context }: { context: AppContextType }) => {
                     ) : (
                         <div id="dashboard-empty-state-container" className="col-span-full flex flex-col items-center justify-center text-center gap-4 p-8">
                             <p className="text-base max-w-sm">{translate('dashboardEmptyMessage')}</p>
-                            <button id="dashboard-empty-state-configure-button" onClick={() => actions.toggleSettingsModal(true)} className="btn btn-primary">
+                            <button id="dashboard-empty-state-configure-button" onClick={() => actions.openOverlay('settings')} className="btn btn-primary">
                                 <span ref={el => el && setIcon(el, 'UI_TUNE')}></span>
                                 <span>{translate('dashboardEmptyButton')}</span>
                             </button>

@@ -1,9 +1,9 @@
 /* FILE: extensions/plugins/gesture-vision-plugin-dashboard/frontend/hooks/use-dashboard-interaction.tsx */
-import React, { useContext, useEffect, useState, useRef, useCallback } from 'react';
+import { useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { AppContext } from '#frontend/contexts/AppContext.js';
 import { GESTURE_EVENTS, normalizeNameForMtx } from '#shared/index.js';
 
-const SMOOTHING_FACTOR = 0.4;
+const SMOOTHING_FACTOR = 0.2;
 const CALIBRATION_RESET_DELAY = 1500;
 const CALIBRATION_MARGIN = 0.05;
 const MIN_CALIBRATION_RANGE = 0.1;
@@ -30,87 +30,88 @@ export const useDashboardInteraction = (pointerGestureName: string, isEnabled: b
         calibrationBounds.current = { minX: 1.0, maxX: 0.0, minY: 1.0, maxY: 0.0 };
     }, []);
 
-    const handleLandmarks = useCallback((data: unknown) => {
-        const renderData = data as RenderData;
-        if (!isEnabled || !context) return;
-
-        const { cameraService } = context.services;
-        const rootElement = document.getElementById('dashboard-plugin-root');
-        const contentWrapperElement = rootElement?.querySelector('#dashboard-content-panel');
-        if (!contentWrapperElement) return;
-
-        const isMirrored = cameraService!.getCameraManager().isMirrored();
-        const pointerGestureKey = normalizeNameForMtx(pointerGestureName);
-        const builtInGestures = renderData?.handGestureResults?.gestures?.[0] || [];
-        const customGestures = renderData?.customActionableGestures || [];
-        const allDetectedGestures = [...builtInGestures, ...customGestures];
-        const isPointerActive = allDetectedGestures.some(g => g.categoryName && normalizeNameForMtx(g.categoryName) === pointerGestureKey);
-        const fingertip = renderData?.handGestureResults?.landmarks?.[0]?.[8];
-
-        if (isPointerActive && fingertip) {
-            if (calibrationResetTimer.current) clearTimeout(calibrationResetTimer.current);
-            const bounds = calibrationBounds.current;
-
-            bounds.minX = Math.min(bounds.minX, fingertip.x + CALIBRATION_MARGIN);
-            bounds.maxX = Math.max(bounds.maxX, fingertip.x - CALIBRATION_MARGIN);
-            bounds.minY = Math.min(bounds.minY, fingertip.y + CALIBRATION_MARGIN);
-            bounds.maxY = Math.max(bounds.maxY, fingertip.y - CALIBRATION_MARGIN);
-
-            const rangeX = Math.max(MIN_CALIBRATION_RANGE, bounds.maxX - bounds.minX);
-            const rangeY = Math.max(MIN_CALIBRATION_RANGE, bounds.maxY - bounds.minY);
-            
-            const normalizedCalibratedX = Math.max(0, Math.min(1, (fingertip.x - bounds.minX) / rangeX));
-            const normalizedCalibratedY = Math.max(0, Math.min(1, (fingertip.y - bounds.minY) / rangeY));
-
-            calibrationResetTimer.current = window.setTimeout(resetCalibration, CALIBRATION_RESET_DELAY);
-            cursorRef.current?.classList.add('visible');
-            const containerRect = contentWrapperElement.getBoundingClientRect();
-
-            targetPosRef.current.x = containerRect.left + (isMirrored ? (1 - normalizedCalibratedX) : normalizedCalibratedX) * containerRect.width;
-            targetPosRef.current.y = containerRect.top + normalizedCalibratedY * containerRect.height;
-        } else {
-            cursorRef.current?.classList.remove('visible');
-            setHoveredCard(null);
-        }
-    }, [isEnabled, pointerGestureName, context, resetCalibration]);
-
+    // All hooks must be called unconditionally at the top level of the component.
+    // We use a single useEffect that handles all subscriptions and cleanup.
     useEffect(() => {
         if (!isEnabled || !context) return;
-        const { pubsub } = context.services;
+        
+        const { pubsub, cameraService } = context.services;
         let animationFrameId: number;
 
+        const handleLandmarks = (data: unknown) => {
+            const renderData = data as RenderData;
+            const rootElement = document.getElementById('dashboard-plugin-root');
+            const contentWrapperElement = rootElement?.querySelector('#dashboard-content-panel');
+            if (!contentWrapperElement) return;
+
+            const isMirrored = cameraService!.getCameraManager().isMirrored();
+            const pointerGestureKey = normalizeNameForMtx(pointerGestureName);
+            const builtInGestures = renderData?.handGestureResults?.gestures?.[0] || [];
+            const customGestures = renderData?.customActionableGestures || [];
+            const allDetectedGestures = [...builtInGestures, ...customGestures];
+            const isPointerActive = allDetectedGestures.some(g => g.categoryName && normalizeNameForMtx(g.categoryName) === pointerGestureKey);
+            const fingertip = renderData?.handGestureResults?.landmarks?.[0]?.[8];
+
+            if (isPointerActive && fingertip) {
+                if (calibrationResetTimer.current) clearTimeout(calibrationResetTimer.current);
+                const bounds = calibrationBounds.current;
+
+                bounds.minX = Math.min(bounds.minX, fingertip.x + CALIBRATION_MARGIN);
+                bounds.maxX = Math.max(bounds.maxX, fingertip.x - CALIBRATION_MARGIN);
+                bounds.minY = Math.min(bounds.minY, fingertip.y + CALIBRATION_MARGIN);
+                bounds.maxY = Math.max(bounds.maxY, fingertip.y - CALIBRATION_MARGIN);
+
+                const rangeX = Math.max(MIN_CALIBRATION_RANGE, bounds.maxX - bounds.minX);
+                const rangeY = Math.max(MIN_CALIBRATION_RANGE, bounds.maxY - bounds.minY);
+                
+                const normalizedCalibratedX = Math.max(0, Math.min(1, (fingertip.x - bounds.minX) / rangeX));
+                const normalizedCalibratedY = Math.max(0, Math.min(1, (fingertip.y - bounds.minY) / rangeY));
+
+                calibrationResetTimer.current = window.setTimeout(resetCalibration, CALIBRATION_RESET_DELAY);
+                cursorRef.current?.classList.add('visible');
+                const containerRect = contentWrapperElement.getBoundingClientRect();
+
+                targetPosRef.current.x = containerRect.left + (isMirrored ? (1 - normalizedCalibratedX) : normalizedCalibratedX) * containerRect.width;
+                targetPosRef.current.y = containerRect.top + normalizedCalibratedY * containerRect.height;
+                
+                // Perform hit-testing here, ONLY when new data arrives
+                const elements = document.elementsFromPoint(targetPosRef.current.x, targetPosRef.current.y);
+                const card = elements.find(el => el.matches('.card-item:not(.config-item-disabled)')) as HTMLElement | undefined;
+                const currentTarget = card?.dataset.gestureName || null;
+                
+                // Only update state if the hovered card has actually changed
+                setHoveredCard(prev => (prev !== currentTarget ? currentTarget : prev));
+
+            } else {
+                cursorRef.current?.classList.remove('visible');
+                setHoveredCard(null);
+            }
+        };
+        
         const animationLoop = () => {
             animationFrameId = requestAnimationFrame(animationLoop);
             if (!cursorRef.current) return;
             
+            // Visual smoothing only
             visualPosRef.current.x += (targetPosRef.current.x - visualPosRef.current.x) * SMOOTHING_FACTOR;
             visualPosRef.current.y += (targetPosRef.current.y - visualPosRef.current.y) * SMOOTHING_FACTOR;
             
-            const cursorX = visualPosRef.current.x;
-            const cursorY = visualPosRef.current.y;
-            
-            cursorRef.current.style.left = `${cursorX}px`;
-            cursorRef.current.style.top = `${cursorY}px`;
-            
-            let currentTarget: string | null = null;
-            if (cursorRef.current.classList.contains('visible')) {
-                const elements = document.elementsFromPoint(cursorX, cursorY);
-                const card = elements.find(el => el.matches('.card-item:not(.config-item-disabled)')) as HTMLElement | undefined;
-                currentTarget = card?.dataset.gestureName || null;
-            }
-            
-            setHoveredCard(prev => (prev !== currentTarget ? currentTarget : prev));
+            // Direct DOM manipulation for performance
+            cursorRef.current.style.left = `${visualPosRef.current.x}px`;
+            cursorRef.current.style.top = `${visualPosRef.current.y}px`;
         };
 
-        const unsub = pubsub.subscribe(GESTURE_EVENTS.RENDER_OUTPUT, handleLandmarks);
+        // Subscribe to gesture events for landmark data and start the animation loop
+        const unsubRenderOutput = pubsub.subscribe(GESTURE_EVENTS.RENDER_OUTPUT, handleLandmarks);
         animationFrameId = requestAnimationFrame(animationLoop);
 
+        // Cleanup on unmount or when dependencies change
         return () => {
-            unsub();
+            unsubRenderOutput();
             cancelAnimationFrame(animationFrameId);
             if (calibrationResetTimer.current) clearTimeout(calibrationResetTimer.current);
         };
-    }, [isEnabled, context, handleLandmarks]);
+    }, [isEnabled, context, pointerGestureName, resetCalibration]); // Re-run if these change
     
     const cursorElement = <div ref={cursorRef} id="dashboard-cursor"></div>;
     

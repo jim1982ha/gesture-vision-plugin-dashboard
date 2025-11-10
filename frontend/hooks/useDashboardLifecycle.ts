@@ -25,10 +25,9 @@ export const useDashboardLifecycle = (context: AppContextType) => {
 
         if (!wasStreamActiveInitially) {
             const selectedSource = cameraService.getCameraManager().getCameraSourceManager().getSelectedCameraSource();
-            // If no stream is running and no webcam is pre-selected, prompt the user.
             if (!selectedSource || selectedSource.startsWith('rtsp:')) {
                 console.log('[DashboardLifecycle] No webcam selected, opening modal.');
-                actions.toggleCameraSelectModal(true);
+                actions.openOverlay('cameraSelect');
             } else {
                 console.log(`[DashboardLifecycle] Starting stream for selected source: ${selectedSource}`);
                 cameraService.startStream({ cameraId: selectedSource }).catch(console.error);
@@ -39,14 +38,13 @@ export const useDashboardLifecycle = (context: AppContextType) => {
         pubsub.publish(GESTURE_EVENTS.REQUEST_PROCESSING_OVERRIDE, { hand: true, pose: false, numHands: 1, builtIn: true, custom: true });
         pubsub.publish(GESTURE_EVENTS.SUPPRESS_ACTIONS);
 
-        // Cleanup function runs when the dashboard is deactivated.
         return () => {
             console.log('[DashboardLifecycle] Dashboard deactivated. Cleaning up.');
             
-            // Always ensure the camera selection modal is closed when the dashboard closes.
-            actions.toggleCameraSelectModal(false);
+            if (context.appStore.getState().activeOverlays.some(o => o.id === 'cameraSelect')) {
+                actions.closeCurrentOverlay();
+            }
             
-            // If the dashboard started a stream, it should be the one to stop it.
             if (!wasStreamActiveInitially && cameraService.isStreamActive()) {
                 console.log('[DashboardLifecycle] Stopping camera stream that was started by the dashboard.');
                 cameraService.stopStream();
@@ -56,5 +54,5 @@ export const useDashboardLifecycle = (context: AppContextType) => {
             pubsub.publish(GESTURE_EVENTS.CLEAR_PROCESSING_OVERRIDE);
             pubsub.publish(GESTURE_EVENTS.RESUME_ACTIONS);
         };
-    }, [context, actions]); // Dependencies ensure this runs only when the dashboard component mounts.
+    }, [context, actions]);
 };

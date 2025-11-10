@@ -1,5 +1,4 @@
-/* This file contains ONLY standard CSS or utility classes already defined in the main Tailwind config. */
-/* It MUST NOT contain @layer, @apply, or theme() directives as it's not processed by the core Tailwind build pipeline. */
+/* extensions/plugins/gesture-vision-plugin-dashboard/frontend/style.css */
 
 #dashboard-plugin-root {
   background-color: hsl(var(--color-background) / 0.7);
@@ -8,6 +7,7 @@
 #dashboard-content-panel {
   background-color: hsl(var(--color-surface));
   border: 1px solid hsl(var(--color-border));
+  pointer-events: auto; /* Keep pointer events enabled for the content panel */
 }
 
 #dashboard-toolbar {
@@ -120,6 +120,7 @@
     transition: all 150ms ease-in-out;
     word-break: break-all;
     white-space: pre-wrap;
+    pointer-events: none; /* MODIFIED: Makes the HUD non-interactive */
 }
 
 #dashboard-plugin-root.is-hovering #dashboard-hud {
