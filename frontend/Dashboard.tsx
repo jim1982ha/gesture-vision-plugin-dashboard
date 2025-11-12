@@ -2,7 +2,7 @@
 import { useState, useMemo, useEffect, useRef, useContext } from 'react';
 import { type AppContextType } from '#frontend/types/index.js';
 import { useAppStore } from '#frontend/hooks/useAppStore.js';
-import { type GestureConfig, type PoseConfig, GESTURE_EVENTS, type CustomGestureMetadata, normalizeNameForMtx, type ActionDisplayDetail } from '#shared/index.js';
+import { type GestureConfig, type PoseConfig, GESTURE_EVENTS, type CustomGestureMetadata, normalizeNameForMtx, type ActionDisplayDetail, type GestureCategoryIconType } from '#shared/index.js';
 import { DashboardToolbar } from './ui/DashboardToolbar.js';
 import { DashboardCard } from './ui/DashboardCard.js';
 import { useDashboardInteraction } from './hooks/use-dashboard-interaction.js';
@@ -98,7 +98,7 @@ export const Dashboard = ({ context }: { context: AppContextType }) => {
 
                 webSocketService.sendDispatchAction(config, actionDetails);
                 pubsub.publish(GESTURE_EVENTS.DETECTED_ALERT, { gesture: hoveredCard, actionType: config.actionConfig.pluginId });
-                latestActions.addHistoryEntry({ gesture: hoveredCard, actionType: config.actionConfig.pluginId, gestureCategory: category, details: config.actionConfig });
+                latestActions.addHistoryEntry({ gesture: hoveredCard, actionType: config.actionConfig.pluginId, gestureCategory: category as GestureCategoryIconType, details: config.actionConfig });
                 
                 const cardElement = document.querySelector(`.card-item[data-gesture-name="${CSS.escape(hoveredCard)}"]`);
                 cardElement?.classList.add('widget-triggered');
@@ -117,17 +117,17 @@ export const Dashboard = ({ context }: { context: AppContextType }) => {
     }, [hoveredCard, translate]);
 
     return (
-        <div id="dashboard-plugin-root" className="fixed inset-0 z-modal-overlay backdrop-blur-sm flex items-center justify-center visible opacity-100 transition-opacity duration-300">
+        <div id="dashboard-plugin-root" className="modal visible">
             {cursorElement}
             <div id="dashboard-hud" />
-            <div id="dashboard-content-panel" className="w-[90vw] h-[85vh] max-w-[1400px] max-h-[900px] rounded-lg shadow-2xl flex flex-col overflow-hidden scale-100 opacity-100 transition duration-300 ease-out relative">
+            <div id="dashboard-content-panel" className="modal-content modal-content-xl !p-0">
                 <DashboardToolbar 
                     cardSize={cardSize} 
                     onCardSizeChange={setCardSize}
                     pointerGesture={pointerGesture}
                     onPointerGestureChange={setPointerGesture}
                 />
-                <div id="dashboard-card-container" className={`dashboard-card-container overflow-y-auto p-4 grid gap-3 content-start card-size-${cardSize}`}>
+                <div id="dashboard-card-container" className={`modal-scrollable-content dashboard-card-container overflow-y-auto p-4 grid gap-3 content-start card-size-${cardSize}`}>
                     {filteredConfigs.length > 0 ? (
                         filteredConfigs.map((config: GestureConfig | PoseConfig) => {
                             const gestureName = 'gesture' in config ? config.gesture : config.pose;

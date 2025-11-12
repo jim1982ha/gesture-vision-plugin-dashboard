@@ -24,7 +24,7 @@ export const useDashboardLifecycle = (context: AppContextType) => {
         const wasStreamActiveInitially = cameraService.isStreamActive();
 
         if (!wasStreamActiveInitially) {
-            const selectedSource = cameraService.getCameraManager().getCameraSourceManager().getSelectedCameraSource();
+            const selectedSource = cameraService.getCurrentDeviceId();
             if (!selectedSource || selectedSource.startsWith('rtsp:')) {
                 console.log('[DashboardLifecycle] No webcam selected, opening modal.');
                 actions.openOverlay('cameraSelect');

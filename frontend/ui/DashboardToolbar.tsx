@@ -21,10 +21,10 @@ export const DashboardToolbar: React.FC<DashboardToolbarProps> = ({ cardSize, on
     
     usePubSub(UI_EVENTS.REQUEST_BUTTON_STATE_UPDATE);
 
-    if (!context) return null;
+    if (!context || !context.services.cameraService) return null;
     const { translate } = context.services.translationService;
     const { cameraService } = context.services;
-    const isMirrored = cameraService!.getCameraManager().isMirrored();
+    const isMirrored = cameraService.isMirrored();
 
     return (
         <div id="dashboard-toolbar" className="flex-shrink-0 p-2 flex items-center justify-between gap-2">

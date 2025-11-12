@@ -30,10 +30,8 @@ export const useDashboardInteraction = (pointerGestureName: string, isEnabled: b
         calibrationBounds.current = { minX: 1.0, maxX: 0.0, minY: 1.0, maxY: 0.0 };
     }, []);
 
-    // All hooks must be called unconditionally at the top level of the component.
-    // We use a single useEffect that handles all subscriptions and cleanup.
     useEffect(() => {
-        if (!isEnabled || !context) return;
+        if (!isEnabled || !context || !context.services.cameraService) return;
         
         const { pubsub, cameraService } = context.services;
         let animationFrameId: number;
@@ -44,7 +42,7 @@ export const useDashboardInteraction = (pointerGestureName: string, isEnabled: b
             const contentWrapperElement = rootElement?.querySelector('#dashboard-content-panel');
             if (!contentWrapperElement) return;
 
-            const isMirrored = cameraService!.getCameraManager().isMirrored();
+            const isMirrored = cameraService.isMirrored();
             const pointerGestureKey = normalizeNameForMtx(pointerGestureName);
             const builtInGestures = renderData?.handGestureResults?.gestures?.[0] || [];
             const customGestures = renderData?.customActionableGestures || [];
@@ -74,12 +72,10 @@ export const useDashboardInteraction = (pointerGestureName: string, isEnabled: b
                 targetPosRef.current.x = containerRect.left + (isMirrored ? (1 - normalizedCalibratedX) : normalizedCalibratedX) * containerRect.width;
                 targetPosRef.current.y = containerRect.top + normalizedCalibratedY * containerRect.height;
                 
-                // Perform hit-testing here, ONLY when new data arrives
                 const elements = document.elementsFromPoint(targetPosRef.current.x, targetPosRef.current.y);
                 const card = elements.find(el => el.matches('.card-item:not(.config-item-disabled)')) as HTMLElement | undefined;
                 const currentTarget = card?.dataset.gestureName || null;
                 
-                // Only update state if the hovered card has actually changed
                 setHoveredCard(prev => (prev !== currentTarget ? currentTarget : prev));
 
             } else {
@@ -92,26 +88,22 @@ export const useDashboardInteraction = (pointerGestureName: string, isEnabled: b
             animationFrameId = requestAnimationFrame(animationLoop);
             if (!cursorRef.current) return;
             
-            // Visual smoothing only
             visualPosRef.current.x += (targetPosRef.current.x - visualPosRef.current.x) * SMOOTHING_FACTOR;
             visualPosRef.current.y += (targetPosRef.current.y - visualPosRef.current.y) * SMOOTHING_FACTOR;
             
-            // Direct DOM manipulation for performance
             cursorRef.current.style.left = `${visualPosRef.current.x}px`;
             cursorRef.current.style.top = `${visualPosRef.current.y}px`;
         };
 
-        // Subscribe to gesture events for landmark data and start the animation loop
         const unsubRenderOutput = pubsub.subscribe(GESTURE_EVENTS.RENDER_OUTPUT, handleLandmarks);
         animationFrameId = requestAnimationFrame(animationLoop);
 
-        // Cleanup on unmount or when dependencies change
         return () => {
             unsubRenderOutput();
             cancelAnimationFrame(animationFrameId);
             if (calibrationResetTimer.current) clearTimeout(calibrationResetTimer.current);
         };
-    }, [isEnabled, context, pointerGestureName, resetCalibration]); // Re-run if these change
+    }, [isEnabled, context, pointerGestureName, resetCalibration]);
     
     const cursorElement = <div ref={cursorRef} id="dashboard-cursor"></div>;
     
